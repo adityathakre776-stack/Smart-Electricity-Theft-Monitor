@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Power Theft Detection — Full Wiring Diagram</title>
+    <style>
+        body {
+            margin: 0;
+            background: #080810;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            font-family: Arial, sans-serif
+        }
+
+        h2 {
+            color: #fff;
+            text-align: center;
+            margin: 8px 0 4px;
+            font-size: 20px
+        }
+
+        p {
+            color: #5a5d7a;
+            text-align: center;
+            margin: 0 0 12px;
+            font-size: 13px
+        }
+
+        svg {
+            max-width: 100%;
+            height: auto;
+            display: block
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 14px 0
+        }
+
+        .leg {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #ccc
+        }
+
+        .leg span {
+            display: inline-block;
+            width: 32px;
+            height: 4px;
+            border-radius: 2px
+        }
+    </style>
+</head>
+
+<body>
+    <h2>⚡ Smart Electricity Theft Detection System — Complete Wiring</h2>
+    <p>Both Meter A and Meter B use IDENTICAL hardware. Only MQTT topics differ.</p>
+
+    <div class="legend">
+        <div class="leg"><span style="background:#00cc44"></span>3.3V Power</div>
+        <div class="leg"><span style="background:#ffffff"></span>5V Power (VIN)</div>
+        <div class="leg"><span style="background:#888"></span>GND (Electronics only)</div>
+        <div class="leg"><span style="background:#3b8bff"></span>I2C SDA (GPIO21)</div>
+        <div class="leg"><span style="background:#b060ff"></span>I2C SCL (GPIO22)</div>
+        <div class="leg"><span style="background:#ff8c00"></span>ADC Signal</div>
+        <div class="leg"><span style="background:#ffd700"></span>GPIO Control</div>
+        <div class="leg"><span style="background:#ff2200;height:6px"></span>AC Phase 230V ⚠</div>
+        <div class="leg"><span style="background:#999;height:6px"></span>AC Neutral 230V ⚠</div>
+    </div>
+
+    <svg viewBox="0 0 1780 1050" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- ── BACKGROUND ── -->
+        <rect width="1780" height="1050" fill="#080810" />
+
+        <!-- ── AC DANGER ZONE ── -->
+        <rect x="8" y="8" width="1764" height="185" rx="8" fill="#1a0000" stroke="#ff2200" stroke-width="2"
+            stroke-dasharray="8,4" />
+        <text x="890" y="30" fill="#ff4444" font-size="14" font-weight="bold" text-anchor="middle">⚠ 230V AC HIGH
+            VOLTAGE ZONE — DANGER — Keep insulated</text>
+
+        <!-- Source -->
+        <rect x="16" y="45" width="88" height="65" rx="5" fill="#1e1e1e" stroke="#888" stroke-width="2" />
+        <text x="60" y="67" fill="white" font-size="11" font-weight="bold" text-anchor="middle">230V AC</text>
+        <text x="60" y="81" fill="#ff6644" font-size="10" text-anchor="middle">PHASE (L)</text>
+        <text x="60" y="96" fill="#aaa" font-size="10" text-anchor="middle">NEUTRAL(N)</text>
+
+        <!-- MCB -->
+        <rect x="120" y="48" width="80" height="42" rx="4" fill="#1e1e1e" stroke="#aaa" stroke-width="2" />
+        <text x="160" y="66" fill="white" font-size="12" font-weight="bold" text-anchor="middle">MCB 6A</text>
+        <text x="160" y="82" fill="#888" font-size="10" text-anchor="middle">Circuit Breaker</text>
+
+        <!-- ── PHASE WIRE y=75 ── -->
+        <line x1="104" y1="75" x2="120" y2="75" stroke="#ff2200" stroke-width="5" />
+        <line x1="200" y1="75" x2="1762" y2="75" stroke="#ff2200" stroke-width="5" />
+        <text x="620" y="60" fill="#ff6644" font-size="11" font-weight="bold">PHASE (L) → → →</text>
+
+        <!-- ── NEUTRAL WIRE y=150 ── -->
+        <line x1="104" y1="150" x2="1762" y2="150" stroke="#aaaaaa" stroke-width="5" />
+        <text x="620" y="185" fill="#aaaaaa" font-size="11">NEUTRAL (N)</text>
+
+        <!-- ── CT RING B  x=360 (Consumer side, Left meter) ── -->
+        <ellipse cx="360" cy="75" rx="52" ry="26" fill="none" stroke="#00d4ff" stroke-width="3.5" />
+        <ellipse cx="360" cy="75" rx="30" ry="14" fill="#060612" stroke="#00d4ff" stroke-width="1.5"
+            stroke-dasharray="4,2" />
+        <text x="360" y="48" fill="#00d4ff" font-size="11" font-weight="bold" text-anchor="middle">CT-B
+            (Consumer)</text>
+        <text x="360" y="115" fill="#888" font-size="9" text-anchor="middle">Phase passes THROUGH ring</text>
+        <!-- CT-B output wires going down into Meter B electronics -->
+        <line x1="346" y1="100" x2="346" y2="200" stroke="#ff8c00" stroke-width="2" />
+        <line x1="374" y1="100" x2="374" y2="200" stroke="#888" stroke-width="2" />
+        <text x="316" y="160" fill="#ff8c00" font-size="9">OUT+</text>
+        <text x="378" y="160" fill="#888" font-size="9">OUT-</text>
+
+        <!-- ── ZMPT-B voltage tap x=540 ── -->
+        <line x1="540" y1="75" x2="540" y2="200" stroke="#ff2200" stroke-width="2" stroke-dasharray="5,3" />
+        <line x1="540" y1="150" x2="565" y2="150" stroke="#aaa" stroke-width="2" stroke-dasharray="5,3" />
+        <line x1="565" y1="150" x2="565" y2="200" stroke="#aaa" stroke-width="2" stroke-dasharray="5,3" />
+        <text x="545" y="130" fill="#ffd700" font-size="9">Phase→ZMPT-B</text>
+        <text x="545" y="142" fill="#999" font-size="9">Neutral→ZMPT-B</text>
+
+        <!-- ── THEFT ZONE CENTER ── -->
+        <rect x="840" y="38" width="100" height="55" rx="4" fill="rgba(120,0,0,0.6)" stroke="#ff0000" stroke-width="2"
+            stroke-dasharray="4,2" />
+        <text x="890" y="57" fill="#ff4444" font-size="12" font-weight="bold" text-anchor="middle">⚡ THEFT</text>
+        <text x="890" y="72" fill="#ff4444" font-size="11" text-anchor="middle">ZONE</text>
+        <text x="890" y="86" fill="#ff8888" font-size="9" text-anchor="middle">(illegal tap here)</text>
+
+        <!-- ── ZMPT-A voltage tap x=1240 ── -->
+        <line x1="1240" y1="75" x2="1240" y2="200" stroke="#ff2200" stroke-width="2" stroke-dasharray="5,3" />
+        <line x1="1240" y1="150" x2="1215" y2="150" stroke="#aaa" stroke-width="2" stroke-dasharray="5,3" />
+        <line x1="1215" y1="150" x2="1215" y2="200" stroke="#aaa" stroke-width="2" stroke-dasharray="5,3" />
+        <text x="1185" y="130" fill="#ffd700" font-size="9">Phase→ZMPT-A</text>
+        <text x="1185" y="142" fill="#999" font-size="9">Neutral→ZMPT-A</text>
+
+        <!-- ── CT RING A  x=1420 (Supply side, Right meter) ── -->
+        <ellipse cx="1420" cy="75" rx="52" ry="26" fill="none" stroke="#00d4ff" stroke-width="3.5" />
+        <ellipse cx="1420" cy="75" rx="30" ry="14" fill="#060612" stroke="#00d4ff" stroke-width="1.5"
+            stroke-dasharray="4,2" />
+        <text x="1420" y="48" fill="#00d4ff" font-size="11" font-weight="bold" text-anchor="middle">CT-A (Supply)</text>
+        <text x="1420" y="115" fill="#888" font-size="9" text-anchor="middle">Phase passes THROUGH ring</text>
+        <!-- CT-A output wires -->
+        <line x1="1406" y1="100" x2="1406" y2="200" stroke="#ff8c00" stroke-width="2" />
+        <line x1="1434" y1="100" x2="1434" y2="200" stroke="#888" stroke-width="2" />
+        <text x="1374" y="160" fill="#ff8c00" font-size="9">OUT+</text>
+        <text x="1438" y="160" fill="#888" font-size="9">OUT-</text>
+
+        <!-- AC Load (Bulb) -->
+        <circle cx="1710" cy="90" r="22" fill="none" stroke="#ffff00" stroke-width="2.5" />
+        <line x1="1695" y1="90" x2="1725" y2="90" stroke="#ffff00" stroke-width="2" />
+        <line x1="1710" y1="72" x2="1710" y2="108" stroke="#ffff00" stroke-width="2" />
+        <text x="1710" y="128" fill="#dddd00" font-size="10" text-anchor="middle">AC LOAD</text>
+        <text x="1710" y="140" fill="#aaaa00" font-size="9" text-anchor="middle">(Demo Bulb)</text>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- METER B — Consumer / House Side  (LEFT, x=8 to x=870) -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <rect x="8" y="200" width="866" height="785" rx="10" fill="#040a18" stroke="#3b8bff" stroke-width="3" />
+        <text x="440" y="224" fill="#3b8bff" font-size="15" font-weight="bold" text-anchor="middle">🏠 METER B —
+            Consumer / House Side</text>
+        <text x="440" y="240" fill="#334" font-size="10" text-anchor="middle">Publishes: meter/B/data | Subscribes:
+            meter/B/relay</text>
+
+        <!-- Bias Circuit Box B -->
+        <rect x="22" y="260" width="190" height="175" rx="6" fill="#0a0a20" stroke="#888" stroke-width="1.5" />
+        <text x="117" y="278" fill="#ccc" font-size="11" font-weight="bold" text-anchor="middle">Bias Circuit</text>
+        <!-- Burden resistor symbol -->
+        <text x="117" y="296" fill="#aaa" font-size="10" text-anchor="middle">100Ω Burden Resistor</text>
+        <rect x="72" y="300" width="90" height="16" rx="3" fill="none" stroke="#ff8c00" stroke-width="1.5" />
+        <text x="117" y="312" fill="#ff8c00" font-size="9" text-anchor="middle">CT OUT(+) ──[100Ω]──┐</text>
+        <!-- Resistor divider -->
+        <text x="117" y="330" fill="#00cc44" font-size="10" text-anchor="middle">3.3V ──[10kΩ]──┤ BIAS</text>
+        <text x="117" y="348" fill="#888" font-size="10" text-anchor="middle">GND ──[10kΩ]──┘ =1.65V</text>
+        <text x="117" y="366" fill="#aaa" font-size="10" text-anchor="middle">10µF cap GND to BIAS</text>
+        <text x="117" y="384" fill="#ff8c00" font-size="10" font-weight="bold" text-anchor="middle">OUT → ADS1115
+            A0</text>
+        <text x="117" y="400" fill="#888" font-size="9" text-anchor="middle">CT OUT(-) → GND</text>
+        <text x="117" y="417" fill="#555" font-size="9" text-anchor="middle">Bias lifts AC signal to</text>
+        <text x="117" y="429" fill="#555" font-size="9" text-anchor="middle">1.65V for ADC reading</text>
+
+        <!-- CT B wire to Bias circuit top -->
+        <line x1="346" y1="200" x2="130" y2="260" stroke="#ff8c00" stroke-width="2" />
+        <line x1="374" y1="200" x2="130" y2="280" stroke="#888" stroke-width="1.5" />
+
+        <!-- ADS1115 Box B -->
+        <rect x="230" y="258" width="165" height="210" rx="6" fill="#0d0820" stroke="#b060ff" stroke-width="2" />
+        <text x="312" y="276" fill="#b060ff" font-size="12" font-weight="bold" text-anchor="middle">ADS1115</text>
+        <text x="312" y="290" fill="#884" font-size="9" text-anchor="middle">16-bit ADC (I²C 0x48)</text>
+        <!-- ADS1115 pins -->
+        <text x="240" y="312" fill="#00cc44" font-size="10">VCC → ESP32 3.3V</text>
+        <text x="240" y="328" fill="#888" font-size="10">GND → ESP32 GND</text>
+        <text x="240" y="344" fill="#3b8bff" font-size="10">SDA → GPIO21</text>
+        <text x="240" y="360" fill="#b060ff" font-size="10">SCL → GPIO22</text>
+        <text x="240" y="376" fill="#888" font-size="10">ADDR→ GND (=0x48)</text>
+        <line x1="240" y1="385" x2="385" y2="385" stroke="#444" stroke-width="1" />
+        <text x="240" y="400" fill="#ff8c00" font-size="10">A0 ← Bias Circuit</text>
+        <text x="240" y="416" fill="#ff8c00" font-size="10">A1 ← ZMPT101B OUT</text>
+        <text x="240" y="432" fill="#555" font-size="9">A2, A3 — unused</text>
+        <text x="240" y="457" fill="#444" font-size="9">I²C: SDA=GPIO21 SCL=GPIO22</text>
+
+        <!-- ZMPT101B Box B -->
+        <rect x="420" y="258" width="145" height="185" rx="6" fill="#1a1200" stroke="#ffd700" stroke-width="2" />
+        <text x="492" y="276" fill="#ffd700" font-size="11" font-weight="bold" text-anchor="middle">ZMPT101B</text>
+        <text x="492" y="290" fill="#884" font-size="9" text-anchor="middle">AC Voltage Sensor</text>
+        <text x="430" y="310" fill="#ffffff" font-size="10">VCC → ESP32 VIN(5V)</text>
+        <text x="430" y="326" fill="#888" font-size="10">GND → ESP32 GND</text>
+        <text x="430" y="342" fill="#ff8c00" font-size="10">OUT → ADS1115 A1</text>
+        <line x1="430" y1="352" x2="560" y2="352" stroke="#444" stroke-width="1" />
+        <text x="430" y="368" fill="#ff4444" font-size="10">AC(+)← Phase wire</text>
+        <text x="430" y="384" fill="#aaa" font-size="10">AC(-) ← Neutral wire</text>
+        <text x="430" y="400" fill="#555" font-size="9">Transformer isolated!</text>
+        <text x="430" y="414" fill="#555" font-size="9">AC never = ESP32 GND</text>
+        <text x="430" y="430" fill="#555" font-size="9">Needs 5V (not 3.3V)</text>
+
+        <!-- ZMPT B tap wires from AC zone -->
+        <line x1="540" y1="200" x2="490" y2="258" stroke="#ff2200" stroke-width="2" stroke-dasharray="4,2" />
+        <line x1="565" y1="200" x2="510" y2="258" stroke="#aaa" stroke-width="2" stroke-dasharray="4,2" />
+
+        <!-- Relay Box B -->
+        <rect x="420" y="460" width="145" height="130" rx="6" fill="#1a0000" stroke="#ff3355" stroke-width="2" />
+        <text x="492" y="478" fill="#ff3355" font-size="11" font-weight="bold" text-anchor="middle">Relay Module</text>
+        <text x="430" y="498" fill="#ffd700" font-size="10">IN → GPIO26</text>
+        <text x="430" y="514" fill="#ffffff" font-size="10">VCC → ESP32 VIN(5V)</text>
+        <text x="430" y="530" fill="#888" font-size="10">GND → ESP32 GND</text>
+        <line x1="430" y1="540" x2="560" y2="540" stroke="#444" stroke-width="1" />
+        <text x="430" y="556" fill="#ff4444" font-size="10">COM ← AC Phase</text>
+        <text x="430" y="572" fill="#ff4444" font-size="10">NO → AC Load</text>
+
+        <!-- ESP32 Box B -->
+        <rect x="22" y="460" width="390" height="330" rx="8" fill="#061020" stroke="#3b8bff" stroke-width="2.5" />
+        <text x="217" y="481" fill="#3b8bff" font-size="13" font-weight="bold" text-anchor="middle">ESP32 Dev Board
+            (B)</text>
+        <text x="217" y="496" fill="#334" font-size="9" text-anchor="middle">Powers all sensors from its 3.3V and
+            VIN(5V) pins</text>
+        <!-- Left pins -->
+        <text x="32" y="520" fill="#ffffff" font-size="10">VIN(5V) ●───────────────→ ZMPT101B VCC</text>
+        <text x="32" y="537" fill="#ffffff" font-size="10">VIN(5V) ●───────────────→ Relay VCC</text>
+        <text x="32" y="554" fill="#00cc44" font-size="10">3.3V ●───────────────→ ADS1115 VCC</text>
+        <text x="32" y="571" fill="#888" font-size="10">GND ●── (common) ──→ ADS1115/ZMPT/Relay GND</text>
+        <text x="32" y="600" fill="#3b8bff" font-size="10">GPIO21(SDA) ●──────────→ ADS1115 SDA</text>
+        <text x="32" y="617" fill="#b060ff" font-size="10">GPIO22(SCL) ●──────────→ ADS1115 SCL</text>
+        <text x="32" y="634" fill="#ffd700" font-size="10">GPIO26 ●──────────→ Relay IN</text>
+        <line x1="32" y1="644" x2="400" y2="644" stroke="#333" stroke-width="1" />
+        <text x="217" y="663" fill="#555" font-size="10" text-anchor="middle">ADS1115 ADDR → ESP32 GND (sets I²C address
+            0x48)</text>
+        <text x="217" y="680" fill="#334" font-size="10" text-anchor="middle">WiFi: connects to router/hotspot</text>
+        <text x="217" y="697" fill="#3b8bff" font-size="10" text-anchor="middle">MQTT publish: meter/B/data every 2
+            seconds</text>
+        <text x="217" y="714" fill="#ffd700" font-size="10" text-anchor="middle">MQTT subscribe: meter/B/relay (relay
+            ON/OFF)</text>
+        <text x="217" y="740" fill="#444" font-size="9" text-anchor="middle">Firmware: meterB/meterB.ino</text>
+        <text x="217" y="758" fill="#444" font-size="9" text-anchor="middle">Libraries: PubSubClient +
+            Adafruit_ADS1X15</text>
+        <text x="217" y="776" fill="#444" font-size="9" text-anchor="middle">Baud: 115200 | Board: ESP32 Dev
+            Module</text>
+
+        <!-- 5V Power B -->
+        <rect x="22" y="808" width="148" height="62" rx="6" fill="#111" stroke="#888" stroke-width="1.5" />
+        <text x="96" y="827" fill="white" font-size="11" font-weight="bold" text-anchor="middle">5V Power</text>
+        <text x="96" y="843" fill="#aaa" font-size="10" text-anchor="middle">USB cable or</text>
+        <text x="96" y="857" fill="#aaa" font-size="10" text-anchor="middle">5V SMPS + AC</text>
+        <text x="96" y="871" fill="#ffffff" font-size="9" text-anchor="middle">→ ESP32 VIN</text>
+        <line x1="170" y1="838" x2="215" y2="838" stroke="#fff" stroke-width="2" />
+
+        <!-- ADS1115 to ESP32 wires B -->
+        <line x1="230" y1="310" x2="140" y2="510" stroke="#00cc44" stroke-width="2" marker-end="url(#ag)" />
+        <line x1="230" y1="326" x2="140" y2="530" stroke="#888" stroke-width="2" />
+        <line x1="230" y1="342" x2="150" y2="560" stroke="#3b8bff" stroke-width="2" />
+        <line x1="230" y1="358" x2="150" y2="577" stroke="#b060ff" stroke-width="2" />
+        <line x1="230" y1="374" x2="150" y2="530" stroke="#888" stroke-width="1.5" stroke-dasharray="3,2" />
+        <!-- ADS1115 A1 from ZMPT101B -->
+        <line x1="420" y1="342" x2="395" y2="416" stroke="#ff8c00" stroke-width="2" />
+        <!-- Relay to ESP32 GPIO26 -->
+        <line x1="420" y1="498" x2="150" y2="604" stroke="#ffd700" stroke-width="2" />
+        <line x1="420" y1="514" x2="170" y2="537" stroke="#fff" stroke-width="2" />
+        <line x1="420" y1="530" x2="170" y2="540" stroke="#888" stroke-width="1.5" />
+
+        <!-- NOTE: AC Neutral IS NOT connected to ESP32 GND -->
+        <rect x="22" y="886" width="852" height="38" rx="5" fill="#0a1a0a" stroke="#00cc44" stroke-width="1.5" />
+        <text x="446" y="901" fill="#00cc44" font-size="11" font-weight="bold" text-anchor="middle">✔ All sensors
+            powered from ESP32 (3.3V / 5V / GND)</text>
+        <text x="446" y="917" fill="#888" font-size="10" text-anchor="middle">AC Neutral → ZMPT101B AC(-) only. AC
+            Neutral is NEVER connected to ESP32 GND.</text>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- METER A — Supply / Pole Side  (RIGHT, x=912 to x=1772) -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <rect x="912" y="200" width="860" height="785" rx="10" fill="#180a04" stroke="#ff6b35" stroke-width="3" />
+        <text x="1342" y="224" fill="#ff6b35" font-size="15" font-weight="bold" text-anchor="middle">🏭 METER A — Supply
+            / Pole Side</text>
+        <text x="1342" y="240" fill="#443" font-size="10" text-anchor="middle">Publishes: meter/A/data | Subscribes:
+            meter/A/relay</text>
+
+        <!-- Bias Circuit Box A -->
+        <rect x="1568" y="260" width="190" height="175" rx="6" fill="#0a0a20" stroke="#888" stroke-width="1.5" />
+        <text x="1663" y="278" fill="#ccc" font-size="11" font-weight="bold" text-anchor="middle">Bias Circuit</text>
+        <text x="1663" y="296" fill="#aaa" font-size="10" text-anchor="middle">100Ω Burden Resistor</text>
+        <rect x="1618" y="300" width="90" height="16" rx="3" fill="none" stroke="#ff8c00" stroke-width="1.5" />
+        <text x="1663" y="330" fill="#00cc44" font-size="10" text-anchor="middle">3.3V──[10kΩ]──┤ BIAS</text>
+        <text x="1663" y="348" fill="#888" font-size="10" text-anchor="middle">GND──[10kΩ]──┘ =1.65V</text>
+        <text x="1663" y="366" fill="#aaa" font-size="10" text-anchor="middle">10µF cap to GND</text>
+        <text x="1663" y="384" fill="#ff8c00" font-size="10" font-weight="bold" text-anchor="middle">OUT → ADS1115
+            A0</text>
+        <text x="1663" y="400" fill="#888" font-size="9" text-anchor="middle">CT OUT(-) → GND</text>
+
+        <!-- CT A wire to Bias circuit -->
+        <line x1="1406" y1="200" x2="1620" y2="260" stroke="#ff8c00" stroke-width="2" />
+        <line x1="1434" y1="200" x2="1640" y2="280" stroke="#888" stroke-width="1.5" />
+
+        <!-- ADS1115 Box A -->
+        <rect x="1395" y="258" width="165" height="210" rx="6" fill="#0d0820" stroke="#b060ff" stroke-width="2" />
+        <text x="1478" y="276" fill="#b060ff" font-size="12" font-weight="bold" text-anchor="middle">ADS1115</text>
+        <text x="1478" y="290" fill="#884" font-size="9" text-anchor="middle">16-bit ADC (I²C 0x48)</text>
+        <text x="1405" y="312" fill="#00cc44" font-size="10">VCC → ESP32 3.3V</text>
+        <text x="1405" y="328" fill="#888" font-size="10">GND → ESP32 GND</text>
+        <text x="1405" y="344" fill="#3b8bff" font-size="10">SDA → GPIO21</text>
+        <text x="1405" y="360" fill="#b060ff" font-size="10">SCL → GPIO22</text>
+        <text x="1405" y="376" fill="#888" font-size="10">ADDR→ GND (=0x48)</text>
+        <line x1="1405" y1="385" x2="1555" y2="385" stroke="#444" stroke-width="1" />
+        <text x="1405" y="400" fill="#ff8c00" font-size="10">A0 ← Bias Circuit</text>
+        <text x="1405" y="416" fill="#ff8c00" font-size="10">A1 ← ZMPT101B OUT</text>
+        <text x="1405" y="432" fill="#555" font-size="9">A2, A3 — unused</text>
+
+        <!-- ZMPT101B Box A -->
+        <rect x="1218" y="258" width="168" height="185" rx="6" fill="#1a1200" stroke="#ffd700" stroke-width="2" />
+        <text x="1302" y="276" fill="#ffd700" font-size="11" font-weight="bold" text-anchor="middle">ZMPT101B</text>
+        <text x="1302" y="290" fill="#884" font-size="9" text-anchor="middle">AC Voltage Sensor</text>
+        <text x="1228" y="310" fill="#ffffff" font-size="10">VCC → ESP32 VIN(5V)</text>
+        <text x="1228" y="326" fill="#888" font-size="10">GND → ESP32 GND</text>
+        <text x="1228" y="342" fill="#ff8c00" font-size="10">OUT → ADS1115 A1</text>
+        <line x1="1228" y1="352" x2="1382" y2="352" stroke="#444" stroke-width="1" />
+        <text x="1228" y="368" fill="#ff4444" font-size="10">AC(+) ← Phase wire</text>
+        <text x="1228" y="384" fill="#aaa" font-size="10">AC(-) ← Neutral wire</text>
+        <text x="1228" y="400" fill="#555" font-size="9">Transformer isolated!</text>
+        <text x="1228" y="416" fill="#555" font-size="9">Needs 5V (not 3.3V)</text>
+
+        <!-- ZMPT A tap wires from AC zone -->
+        <line x1="1240" y1="200" x2="1292" y2="258" stroke="#ff2200" stroke-width="2" stroke-dasharray="4,2" />
+        <line x1="1215" y1="200" x2="1270" y2="258" stroke="#aaa" stroke-width="2" stroke-dasharray="4,2" />
+
+        <!-- Relay Box A -->
+        <rect x="1218" y="460" width="168" height="130" rx="6" fill="#1a0000" stroke="#ff3355" stroke-width="2" />
+        <text x="1302" y="478" fill="#ff3355" font-size="11" font-weight="bold" text-anchor="middle">Relay Module</text>
+        <text x="1228" y="498" fill="#ffd700" font-size="10">IN → GPIO26</text>
+        <text x="1228" y="514" fill="#ffffff" font-size="10">VCC → ESP32 VIN(5V)</text>
+        <text x="1228" y="530" fill="#888" font-size="10">GND → ESP32 GND</text>
+        <line x1="1228" y1="540" x2="1382" y2="540" stroke="#444" stroke-width="1" />
+        <text x="1228" y="556" fill="#ff4444" font-size="10">COM ← AC Phase</text>
+        <text x="1228" y="572" fill="#ff4444" font-size="10">NO → AC Load</text>
+
+        <!-- ESP32 Box A -->
+        <rect x="928" y="460" width="282" height="330" rx="8" fill="#180800" stroke="#ff6b35" stroke-width="2.5" />
+        <text x="1069" y="481" fill="#ff6b35" font-size="13" font-weight="bold" text-anchor="middle">ESP32 Dev Board
+            (A)</text>
+        <text x="1069" y="496" fill="#443" font-size="9" text-anchor="middle">Powers all sensors from 3.3V and
+            VIN(5V)</text>
+        <text x="938" y="520" fill="#ffffff" font-size="10">VIN(5V) ●──→ ZMPT101B VCC</text>
+        <text x="938" y="537" fill="#ffffff" font-size="10">VIN(5V) ●──→ Relay VCC</text>
+        <text x="938" y="554" fill="#00cc44" font-size="10">3.3V ●──→ ADS1115 VCC</text>
+        <text x="938" y="571" fill="#888" font-size="10">GND ●──→ ADS1115/ZMPT/Relay GND</text>
+        <text x="938" y="600" fill="#3b8bff" font-size="10">GPIO21(SDA)●──→ ADS1115 SDA</text>
+        <text x="938" y="617" fill="#b060ff" font-size="10">GPIO22(SCL)●──→ ADS1115 SCL</text>
+        <text x="938" y="634" fill="#ffd700" font-size="10">GPIO26 ●──→ Relay IN</text>
+        <line x1="938" y1="644" x2="1200" y2="644" stroke="#333" stroke-width="1" />
+        <text x="1069" y="663" fill="#555" font-size="10" text-anchor="middle">ADS1115 ADDR → GND (addr 0x48)</text>
+        <text x="1069" y="680" fill="#443" font-size="10" text-anchor="middle">WiFi: connects to same network</text>
+        <text x="1069" y="697" fill="#ff6b35" font-size="10" text-anchor="middle">MQTT publish: meter/A/data</text>
+        <text x="1069" y="714" fill="#ffd700" font-size="10" text-anchor="middle">MQTT subscribe: meter/A/relay</text>
+        <text x="1069" y="740" fill="#444" font-size="9" text-anchor="middle">Firmware: meterA/meterA.ino</text>
+        <text x="1069" y="758" fill="#444" font-size="9" text-anchor="middle">Libraries: PubSubClient +
+            Adafruit_ADS1X15</text>
+
+        <!-- 5V Power A -->
+        <rect x="1618" y="808" width="148" height="62" rx="6" fill="#111" stroke="#888" stroke-width="1.5" />
+        <text x="1692" y="827" fill="white" font-size="11" font-weight="bold" text-anchor="middle">5V Power</text>
+        <text x="1692" y="843" fill="#aaa" font-size="10" text-anchor="middle">USB cable or</text>
+        <text x="1692" y="857" fill="#aaa" font-size="10" text-anchor="middle">5V SMPS + AC</text>
+        <text x="1692" y="871" fill="#ffffff" font-size="9" text-anchor="middle">→ ESP32 VIN</text>
+        <line x1="1618" y1="838" x2="1210" y2="838" stroke="#fff" stroke-width="2" />
+
+        <!-- ADS1115 to ESP32 wires A -->
+        <line x1="1395" y1="310" x2="1210" y2="510" stroke="#00cc44" stroke-width="2" />
+        <line x1="1395" y1="326" x2="1210" y2="530" stroke="#888" stroke-width="2" />
+        <line x1="1395" y1="342" x2="1210" y2="555" stroke="#3b8bff" stroke-width="2" />
+        <line x1="1395" y1="358" x2="1210" y2="572" stroke="#b060ff" stroke-width="2" />
+        <line x1="1395" y1="374" x2="1210" y2="530" stroke="#888" stroke-width="1.5" stroke-dasharray="3,2" />
+        <!-- ZMPT A1 signal -->
+        <line x1="1386" y1="342" x2="1395" y2="416" stroke="#ff8c00" stroke-width="2" />
+        <!-- Relay to ESP32 A -->
+        <line x1="1218" y1="498" x2="1210" y2="600" stroke="#ffd700" stroke-width="2" />
+        <line x1="1218" y1="514" x2="1210" y2="533" stroke="#fff" stroke-width="2" />
+        <line x1="1218" y1="530" x2="1210" y2="540" stroke="#888" stroke-width="1.5" />
+
+        <!-- Meter A note -->
+        <rect x="912" y="886" width="860" height="38" rx="5" fill="#1a0800" stroke="#ff6b35" stroke-width="1.5" />
+        <text x="1342" y="901" fill="#ff6b35" font-size="11" font-weight="bold" text-anchor="middle">✔ All sensors
+            powered from ESP32 (3.3V / 5V / GND)</text>
+        <text x="1342" y="917" fill="#888" font-size="10" text-anchor="middle">AC Neutral → ZMPT101B AC(-) only. AC
+            Neutral is NEVER connected to ESP32 GND.</text>
+
+        <!-- ── BOTTOM: MQTT FLOW ── -->
+        <rect x="8" y="940" width="1764" height="100" rx="8" fill="#060818" stroke="#3b8bff" stroke-width="1.5"
+            stroke-dasharray="6,3" />
+        <text x="890" y="962" fill="#3b8bff" font-size="13" font-weight="bold" text-anchor="middle">📡 MQTT
+            Communication Flow</text>
+
+        <!-- Meter B WiFi -->
+        <text x="200" y="985" fill="#3b8bff" font-size="20" text-anchor="middle">📡</text>
+        <text x="200" y="1005" fill="#3b8bff" font-size="10" text-anchor="middle">Meter B ESP32</text>
+        <text x="200" y="1020" fill="#555" font-size="9" text-anchor="middle">meter/B/data →</text>
+
+        <!-- Arrow B to Broker -->
+        <line x1="240" y1="988" x2="680" y2="988" stroke="#3b8bff" stroke-width="2" />
+        <polygon points="680,984 692,988 680,992" fill="#3b8bff" />
+
+        <!-- MQTT Broker (PC) -->
+        <rect x="695" y="968" width="190" height="46" rx="6" fill="#0a0a1a" stroke="#888" stroke-width="1.5" />
+        <text x="790" y="986" fill="white" font-size="11" font-weight="bold" text-anchor="middle">💻 PC —
+            Mosquitto</text>
+        <text x="790" y="1001" fill="#aaa" font-size="10" text-anchor="middle">MQTT Broker port 1883</text>
+        <text x="790" y="1014" fill="#555" font-size="9" text-anchor="middle">WebSocket port 9001</text>
+
+        <!-- Arrow Broker to Dashboard -->
+        <line x1="885" y1="988" x2="1060" y2="988" stroke="#00cc44" stroke-width="2" />
+        <polygon points="1060,984 1072,988 1060,992" fill="#00cc44" />
+
+        <!-- Dashboard -->
+        <rect x="1075" y="958" width="490" height="72" rx="6" fill="#0a0a1a" stroke="#00cc44" stroke-width="1.5" />
+        <text x="1320" y="977" fill="#00cc44" font-size="12" font-weight="bold" text-anchor="middle">🖥 PowerGuard Pro
+            Dashboard</text>
+        <text x="1320" y="993" fill="#aaa" font-size="10" text-anchor="middle">http://localhost/Electricity/
+            (ws://localhost:9001)</text>
+        <text x="1320" y="1010" fill="#ffd700" font-size="10" text-anchor="middle">Theft Alert: if (CurrentA − CurrentB)
+            &gt; 0.5A → 🚨 DETECTED</text>
+        <text x="1320" y="1025" fill="#555" font-size="9" text-anchor="middle">Controls: meter/A/relay and meter/B/relay
+            (publish to dashboard)</text>
+
+        <!-- Meter A WiFi -->
+        <text x="1620" y="985" fill="#ff6b35" font-size="20" text-anchor="middle">📡</text>
+        <text x="1620" y="1005" fill="#ff6b35" font-size="10" text-anchor="middle">Meter A ESP32</text>
+        <text x="1620" y="1020" fill="#555" font-size="9" text-anchor="middle">← meter/A/data</text>
+        <line x1="1575" y1="988" x2="890" y2="988" stroke="#ff6b35" stroke-width="2" />
+        <polygon points="890,984 878,988 890,992" fill="#ff6b35" />
+
+    </svg>
+
+    <div
+        style="background:#0d0d1a;border:1px solid #333;border-radius:10px;padding:16px;margin:12px;max-width:1780px;width:100%">
+        <h3 style="color:#fff;margin:0 0 12px;font-size:15px">📋 Quick Connection Reference (same for both meters)</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+            <div style="background:#060812;border:1px solid #b060ff;border-radius:8px;padding:12px">
+                <div style="color:#b060ff;font-weight:bold;margin-bottom:8px">ADS1115 → ESP32</div>
+                <div style="font-family:monospace;font-size:12px;line-height:2;color:#ccc">
+                    VCC → 3.3V<br>GND → GND<br>SDA → GPIO21<br>SCL → GPIO22<br>ADDR → GND
+                </div>
+            </div>
+            <div style="background:#060812;border:1px solid #00d4ff;border-radius:8px;padding:12px">
+                <div style="color:#00d4ff;font-weight:bold;margin-bottom:8px">CT Sensor + Bias Circuit → ADS1115</div>
+                <div style="font-family:monospace;font-size:12px;line-height:2;color:#ccc">
+                    CT OUT(+) → 100Ω → BIAS NODE → A0<br>10kΩ: 3.3V → BIAS NODE<br>10kΩ: BIAS NODE → GND<br>10µF: BIAS
+                    NODE → GND<br>CT OUT(-) → GND
+                </div>
+            </div>
+            <div style="background:#060812;border:1px solid #ffd700;border-radius:8px;padding:12px">
+                <div style="color:#ffd700;font-weight:bold;margin-bottom:8px">ZMPT101B → ESP32 + ADS1115</div>
+                <div style="font-family:monospace;font-size:12px;line-height:2;color:#ccc">
+                    VCC → VIN(5V)<br>GND → GND<br>OUT → ADS1115 A1<br>AC(+)→ Phase wire (ISOLATED)<br>AC(-)→ Neutral
+                    wire (ISOLATED)
+                </div>
+            </div>
+            <div style="background:#060812;border:1px solid #ff3355;border-radius:8px;padding:12px">
+                <div style="color:#ff3355;font-weight:bold;margin-bottom:8px">Relay → ESP32</div>
+                <div style="font-family:monospace;font-size:12px;line-height:2;color:#ccc">
+                    IN → GPIO26<br>VCC → VIN(5V)<br>GND → GND<br>COM ← AC Phase<br>NO → AC Load
+                </div>
+            </div>
+        </div>
+        <div
+            style="margin-top:12px;padding:10px;background:#0a1a0a;border:1px solid #00cc44;border-radius:6px;color:#00cc44;font-size:12px;text-align:center">
+            ✔ AC Neutral is NEVER connected to ESP32 GND | CT sensor clamps AROUND phase wire (no electrical contact) |
+            ZMPT101B transformer provides galvanic isolation
+        </div>
+    </div>
+</body>
+
+</html>

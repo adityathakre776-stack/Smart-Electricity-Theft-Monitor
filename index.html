@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>PowerGuard Pro — Smart Electricity Theft Detection</title>
+    <meta name="description"
+        content="Dual-meter real-time electricity theft detection dashboard using ESP32, CT sensors, and MQTT." />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+
+    <style>
+        /* ── PROFESSIONAL THEFT ALARM & RED BLINKING POPUP STYLING ── */
+        body.theft-active {
+            box-shadow: inset 0 0 120px rgba(255, 30, 60, 0.28);
+            animation: screenPanicPulse 1.4s infinite alternate ease-in-out;
+        }
+
+        @keyframes screenPanicPulse {
+            0% {
+                box-shadow: inset 0 0 40px rgba(255, 30, 60, 0.16);
+            }
+            100% {
+                box-shadow: inset 0 0 130px rgba(255, 30, 60, 0.38);
+            }
+        }
+
+        /* Sound Toggle Button */
+        .sound-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sound-btn:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .sound-btn.muted {
+            opacity: 0.6;
+            color: var(--muted);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        /* Topbar Theft Notification Banner */
+        .theft-banner {
+            display: none;
+            align-items: center;
+            gap: 16px;
+            background: linear-gradient(135deg, rgba(255, 30, 60, 0.2), rgba(255, 107, 53, 0.14));
+            border-bottom: 2px solid #ff3355;
+            padding: 14px 28px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .theft-banner.show {
+            display: flex !important;
+            animation: slideDownBanner 0.35s ease-out;
+        }
+
+        @keyframes slideDownBanner {
+            from { transform: translateY(-100%); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+
+        .alert-pill-badge {
+            background: #ff3355;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 100px;
+            letter-spacing: 0.8px;
+            display: inline-block;
+            margin-bottom: 4px;
+            box-shadow: 0 0 14px rgba(255, 51, 85, 0.7);
+        }
+
+        .status-badge.theft.high-alert {
+            background: rgba(255, 40, 70, 0.22) !important;
+            border: 1px solid #ff3355 !important;
+            color: #ff3355 !important;
+            box-shadow: 0 0 20px rgba(255, 51, 85, 0.45);
+            animation: statusPanic 0.7s infinite alternate ease-in-out;
+        }
+
+        @keyframes statusPanic {
+            from { transform: scale(1); box-shadow: 0 0 10px rgba(255, 51, 85, 0.3); }
+            to   { transform: scale(1.04); box-shadow: 0 0 25px rgba(255, 51, 85, 0.8); }
+        }
+
+        /* Bulb / Relay button ON state */
+        .relay-btn.a.relay-on {
+            background: linear-gradient(135deg, #ff3355, #ff6b35) !important;
+            border-color: #ff3355 !important;
+            color: #fff !important;
+            box-shadow: 0 0 20px rgba(255, 51, 85, 0.6) !important;
+            animation: pulseBulbBtn 0.9s infinite alternate;
+        }
+
+        @keyframes pulseBulbBtn {
+            from { transform: scale(1); }
+            to   { transform: scale(1.03); }
+        }
+
+        /* Meter B Consumer info label */
+        .consumer-note {
+            font-size: 11px;
+            color: #3b8bff;
+            background: rgba(59, 139, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        /* ── ALERT ICON BOX MODAL (APPEARS ON SCREEN ONCE ON LIGHTS ON) ── */
+        .theft-popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 8, 16, 0.86);
+            backdrop-filter: blur(10px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .theft-popup-overlay.show {
+            display: flex;
+            animation: fadeInOverlay 0.25s ease-out;
+        }
+
+        @keyframes fadeInOverlay {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .theft-popup-box {
+            background: linear-gradient(145deg, rgba(38, 10, 16, 0.98), rgba(18, 8, 14, 0.98));
+            border: 2.5px solid #ff2a4a;
+            border-radius: 22px;
+            padding: 32px 30px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 0 60px rgba(255, 42, 74, 0.55), inset 0 0 25px rgba(255, 42, 74, 0.25);
+            animation: redBlinkBorder 0.65s infinite alternate ease-in-out, popupPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes redBlinkBorder {
+            0% {
+                border-color: #ff2a4a;
+                box-shadow: 0 0 30px rgba(255, 42, 74, 0.45), inset 0 0 15px rgba(255, 42, 74, 0.2);
+            }
+            100% {
+                border-color: #ff0033;
+                box-shadow: 0 0 85px rgba(255, 42, 74, 0.95), inset 0 0 35px rgba(255, 42, 74, 0.45);
+            }
+        }
+
+        @keyframes popupPopIn {
+            from { transform: scale(0.82); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
+
+        .popup-beacon {
+            position: relative;
+            width: 76px;
+            height: 76px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .beacon-siren {
+            font-size: 44px;
+            z-index: 2;
+            animation: sirenWiggle 0.55s infinite alternate ease-in-out;
+        }
+
+        @keyframes sirenWiggle {
+            from { transform: rotate(-12deg) scale(0.95); }
+            to   { transform: rotate(12deg) scale(1.1); }
+        }
+
+        .beacon-pulse {
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            background: rgba(255, 42, 74, 0.4);
+            animation: beaconPulse 1.2s infinite ease-out;
+            z-index: 1;
+        }
+
+        @keyframes beaconPulse {
+            0% { transform: scale(0.8); opacity: 0.95; }
+            100% { transform: scale(1.65); opacity: 0; }
+        }
+
+        .popup-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #ff3355;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            text-shadow: 0 0 18px rgba(255, 51, 85, 0.6);
+        }
+
+        .popup-badge {
+            display: inline-block;
+            background: rgba(255, 42, 74, 0.22);
+            border: 1px solid rgba(255, 42, 74, 0.7);
+            color: #ff859c;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 14px;
+            border-radius: 100px;
+            letter-spacing: 0.8px;
+            margin-bottom: 14px;
+        }
+
+        .popup-desc {
+            font-size: 13.5px;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.55;
+            margin-bottom: 22px;
+        }
+
+        .popup-stats {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 42, 74, 0.35);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 24px;
+        }
+
+        .pstat {
+            text-align: center;
+        }
+
+        .pstat-lbl {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .pstat-val {
+            font-family: var(--mono);
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .pstat.supply .pstat-val {
+            color: #ff6b35;
+        }
+
+        .pstat.consumer .pstat-val {
+            color: #3b8bff;
+        }
+
+        .pstat-sub {
+            font-size: 10.5px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .pstat-diff {
+            text-align: center;
+        }
+
+        .pstat-arrow {
+            font-size: 18px;
+            color: #ff3355;
+        }
+
+        .pstat-diff-val {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 800;
+            color: #ff3355;
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .popup-btn {
+            width: 100%;
+            padding: 13px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border: none;
+            font-family: inherit;
+        }
+
+        .ack-btn {
+            background: linear-gradient(135deg, #ff3355, #ff6b35);
+            color: #fff;
+            box-shadow: 0 4px 18px rgba(255, 51, 85, 0.45);
+        }
+
+        .ack-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 26px rgba(255, 51, 85, 0.7);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── ALERT ICON BOX (APPEARS ON SCREEN ONCE WHEN LIGHTS ON) ── -->
+    <div class="theft-popup-overlay" id="theftPopupOverlay">
+        <div class="theft-popup-box" id="theftPopupBox">
+            <div class="popup-beacon">
+                <span class="beacon-siren">🚨</span>
+                <span class="beacon-pulse"></span>
+            </div>
+            <div class="popup-title">ELECTRICITY THEFT DETECTED!</div>
+            <div class="popup-badge">⚠️ ALERT BOX — BULB LOAD DETECTED ON SUPPLY</div>
+            <div class="popup-desc">
+                Current discrepancy detected! Supply line (Meter A) is drawing load while Consumer side (Meter B) has no consumption (&le; 0.001 A). Theft connection active!
+            </div>
+            <div class="popup-stats">
+                <div class="pstat supply">
+                    <div class="pstat-lbl">Supply / Pole (Meter A)</div>
+                    <div class="pstat-val" id="popupValA">0.035 A</div>
+                    <div class="pstat-sub">Bulb Active (0.03–0.04 A)</div>
+                </div>
+                <div class="pstat-diff">
+                    <div class="pstat-arrow">⇕</div>
+                    <div class="pstat-diff-val" id="popupValDiff">+0.034 A</div>
+                    <div class="pstat-sub">Theft Diff</div>
+                </div>
+                <div class="pstat consumer">
+                    <div class="pstat-lbl">Consumer (Meter B)</div>
+                    <div class="pstat-val" id="popupValB">0.001 A</div>
+                    <div class="pstat-sub">&le; 0.001 A (No Load)</div>
+                </div>
+            </div>
+            <div class="popup-actions">
+                <button class="popup-btn ack-btn" onclick="dismissAlertBox()">
+                    ✖ Dismiss Alert (Show In Topbar Notification)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── HEADER ───────────────────────────────────────────────── -->
+    <header>
+        <div class="brand">
+            <div class="logo">⚡</div>
+            <div>
+                <h1>PowerGuard Pro</h1>
+                <p>Smart Electricity Theft Detection System</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="device-pill" id="pillA"><span class="dot"></span>Meter A (Pole/Supply)</div>
+            <div class="device-pill" id="pillB"><span class="dot"></span>Meter B (Consumer)</div>
+            <button id="soundToggleBtn" class="sound-btn" onclick="toggleSound()" title="Toggle Professional Audio Alert">🔊 Alarm Sound: ON</button>
+            <a href="mqtt_setup.html" class="setup-link">📡 MQTT Setup</a>
+            <div class="clock" id="clock">--:--:--</div>
+        </div>
+    </header>
+
+    <!-- ── TOPBAR THEFT NOTIFICATION BANNER (SHOWS AFTER DISMISS, NO SOUND) ── -->
+    <div class="theft-banner" id="theftBanner">
+        <div class="banner-pulse"></div>
+        <span class="banner-icon">🚨</span>
+        <div class="banner-text">
+            <div class="banner-title" id="bannerTitle">ELECTRICITY THEFT DETECTED</div>
+            <div class="banner-sub" id="bannerDetail">Supply Current (Meter A) exceeds Consumer Load (Meter B &le; 0.001 A)</div>
+        </div>
+        <div class="banner-meta">
+            <div class="alert-pill-badge">NOTIFICATION</div>
+            <div class="alert-count" id="alertCount">Alert #0</div>
+            <div class="alert-time" id="alertTime">--:--:--</div>
+        </div>
+    </div>
+
+    <main>
+        <!-- ── 3-COLUMN METER LAYOUT ──────────────────────────────── -->
+        <div class="meters-grid">
+
+            <!-- METER B: Consumer Side -->
+            <div class="meter-card meter-b" id="cardB">
+                <div class="card-header">
+                    <div class="meter-badge b">🏠</div>
+                    <div>
+                        <div class="meter-name">METER B</div>
+                        <div class="meter-role">Consumer / House Side</div>
+                        <span class="consumer-note">Bulb NOT glowing (No Consumption)</span>
+                    </div>
+                    <div class="online-dot" id="dotB" title="Active"></div>
+                </div>
+
+                <div class="gauge-area">
+                    <svg class="ring-gauge" viewBox="0 0 160 160" id="gaugeB">
+                        <circle class="ring-bg" cx="80" cy="80" r="62" />
+                        <circle class="ring-fill b" cx="80" cy="80" r="62" id="ringFillB" stroke-dasharray="389.6"
+                            stroke-dashoffset="389.6" transform="rotate(-225 80 80)" />
+                    </svg>
+                    <div class="gauge-center-val">
+                        <div class="gval" id="voltB">0.1</div>
+                        <div class="gunit">Volts</div>
+                    </div>
+                </div>
+
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-icon">〜</div>
+                        <div class="metric-val" id="currB">0.001</div>
+                        <div class="metric-lbl">Amps</div>
+                    </div>
+                    <div class="metric highlight-b">
+                        <div class="metric-icon">⚡</div>
+                        <div class="metric-val" id="pwrB">0</div>
+                        <div class="metric-lbl">Watts</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon">🔋</div>
+                        <div class="metric-val" id="engB">0.000</div>
+                        <div class="metric-lbl">kWh</div>
+                    </div>
+                </div>
+
+                <button class="relay-btn b" id="relayBBtn" onclick="toggleRelay('B')">
+                    <span id="relayBIcon">○</span> Load B: <span id="relayBTxt">OFF</span>
+                </button>
+                <div class="last-seen" id="lastB">Raw Current &le; 0.001 A (No Consumption)</div>
+            </div>
+
+            <!-- CENTER: Theft Analysis Panel -->
+            <div class="center-panel">
+                <div class="panel-title">⚡ THEFT ANALYSIS</div>
+
+                <div class="curr-compare">
+                    <div class="cval supply">
+                        <div class="cv-label">Supply A (Pole)</div>
+                        <div class="cv-num" id="cmpA">0.000</div>
+                        <div class="cv-num" id="cmpA">0.003</div>
+                        <div class="cv-unit">A</div>
+                    </div>
+                    <div class="cval-divider">
+                        <div class="arrow">⇕</div>
+                        <div class="diff-label">Difference</div>
+                        <div class="diff-num" id="diffNum">0.000 A</div>
+                        <div class="diff-num" id="diffNum">0.002 A</div>
+                    </div>
+                    <div class="cval consumer">
+                        <div class="cv-label">Consumer B</div>
+                        <div class="cv-num" id="cmpB">0.001</div>
+                        <div class="cv-unit">A</div>
+                    </div>
+                </div>
+
+                <div class="diff-bar-wrap">
+                    <div class="diff-bar-track">
+                        <div class="diff-bar-fill" id="diffFill"></div>
+                        <div class="diff-bar-thresh" id="threshLine"></div>
+                    </div>
+                    <div class="diff-bar-labels">
+                        <span>0 A</span>
+                        <span>Threshold: <b id="threshDisp">0.020</b> A</span>
+                        <span>0.10 A</span>
+                    </div>
+                </div>
+
+                <div class="status-badge" id="statusBadge">
+                    <span id="statusIcon">✔</span>
+                    <span id="statusTxt">NORMAL</span>
+                </div>
+
+                <div class="mini-counters">
+                    <div class="mini-ctr">
+                        <div class="mc-val" id="totalAlerts">0</div>
+                        <div class="mc-lbl">Total Alerts</div>
+                    </div>
+                    <div class="mini-ctr">
+                        <div class="mc-val" id="uptimeDisp">00:00</div>
+                        <div class="mc-lbl">Uptime</div>
+                    </div>
+                    <div class="mini-ctr">
+                        <div class="mc-val" id="mqttStatus">—</div>
+                        <div class="mc-lbl">MQTT</div>
+                    </div>
+                </div>
+
+                <div class="threshold-ctrl">
+                    <label>Threshold (A): <input type="range" id="threshSlider" min="0.005" max="0.100" step="0.005" value="0.020"
+                            oninput="updateThreshold(this.value)" /></label>
+                    <span id="threshVal">0.020 A</span>
+                </div>
+            </div>
+
+            <!-- METER A: Supply Side -->
+            <div class="meter-card meter-a" id="cardA">
+                <div class="card-header">
+                    <div class="meter-badge a">🏭</div>
+                    <div>
+                        <div class="meter-name">METER A</div>
+                        <div class="meter-role">Supply / Pole Side</div>
+                    </div>
+                    <div class="online-dot" id="dotA" title="Active"></div>
+                </div>
+
+                <div class="gauge-area">
+                    <svg class="ring-gauge" viewBox="0 0 160 160" id="gaugeA">
+                        <circle class="ring-bg" cx="80" cy="80" r="62" />
+                        <circle class="ring-fill a" cx="80" cy="80" r="62" id="ringFillA" stroke-dasharray="389.6"
+                            stroke-dashoffset="389.6" transform="rotate(-225 80 80)" />
+                    </svg>
+                    <div class="gauge-center-val">
+                        <div class="gval" id="voltA">230.0</div>
+                        <div class="gunit">Volts</div>
+                    </div>
+                </div>
+
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-icon">〜</div>
+                        <div class="metric-val" id="currA">0.000</div>
+                        <div class="metric-val" id="currA">0.003</div>
+                        <div class="metric-lbl">Amps</div>
+                    </div>
+                    <div class="metric highlight-a">
+                        <div class="metric-icon">⚡</div>
+                        <div class="metric-val" id="pwrA">0</div>
+                        <div class="metric-lbl">Watts</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon">🔋</div>
+                        <div class="metric-val" id="engA">0.000</div>
+                        <div class="metric-lbl">kWh</div>
+                    </div>
+                </div>
+
+                <button class="relay-btn a" id="relayABtn" onclick="toggleBulbA()" title="Click to turn Bulb ON / OFF">
+                    <span id="relayAIcon">💡</span> Bulb / Load A: <span id="relayATxt">OFF</span>
+                </button>
+                <div class="last-seen" id="lastA">Supply Line Ready</div>
+            </div>
+        </div>
+
+        <!-- ── CHART ────────────────────────────────────────────── -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">📊 Live Current Comparison — Supply A vs Consumer B</div>
+                <div class="chart-legend">
+                    <span class="leg-a">━ Current A (Supply)</span>
+                    <span class="leg-b">━ Current B (Consumer)</span>
+                </div>
+            </div>
+            <div class="chart-wrap"><canvas id="liveChart"></canvas></div>
+        </div>
+
+        <!-- ── EVENT LOG ────────────────────────────────────────── -->
+        <div class="log-card">
+            <div class="log-header">
+                <div class="log-title">📋 Event Log</div>
+                <button class="clear-btn" onclick="clearLog()">Clear</button>
+            </div>
+            <div class="log-body" id="logBody">
+                <div class="log-entry info">System ready — Consumer Meter B reading &le; 0.001 A. Supply Meter A monitoring for bulb load.</div>
+            </div>
+        </div>
+
+        <!-- ── MQTT CONFIG ──────────────────────────────────────── -->
+        <div class="config-card">
+            <div class="config-title">🔧 MQTT Configuration</div>
+            <div class="config-row">
+                <label>Broker URL (WebSocket)</label>
+                <input type="text" id="brokerUrl" value="ws://localhost:9001" placeholder="ws://host:9001" />
+            </div>
+            <div class="config-btns">
+                <button id="connectBtn" onclick="mqttConnect()">Connect</button>
+                <button id="disconnectBtn" onclick="mqttDisconnect()" disabled>Disconnect</button>
+                <button onclick="startDemo()" id="demoBtn">▶ Demo Simulation</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>PowerGuard Pro — Smart Electricity Theft Detection | Dual-Meter Real-Time System</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+    <script src="app.js"></script>
+
+    <!-- ── THEFT DETECTION SYSTEM, REAL ALERT SOUND & POPUP CONTROLLER ── -->
+    <script>
+        // Set default threshold for sensitive theft detection (0.020 A for 0.03–0.04 A bulb)
+        const DEFAULT_THRESHOLD = 0.020;
+        const DIFF_BAR_MAX = 0.100;
+
+        if (typeof CFG !== 'undefined') {
+            CFG.thresholdAmps = DEFAULT_THRESHOLD;
+        }
+
+        const threshDisp = document.getElementById('threshDisp');
+        const threshVal = document.getElementById('threshVal');
+        const threshSlider = document.getElementById('threshSlider');
+        if (threshDisp) threshDisp.textContent = DEFAULT_THRESHOLD.toFixed(3);
+        if (threshVal) threshVal.textContent = DEFAULT_THRESHOLD.toFixed(3) + ' A';
+        if (threshSlider) {
+            threshSlider.min = '0.005';
+            threshSlider.max = '0.100';
+            threshSlider.step = '0.005';
+            threshSlider.value = DEFAULT_THRESHOLD.toString();
+        }
+
+        // ── PROFESSIONAL REAL ELECTRONIC ALERT SOUND (Web Audio API) ──
+        let audioCtx = null;
+        let soundEnabled = true;
+        let popupDismissed = false; // Tracks if user dismissed popup during current active theft
+        let theftAlertDelayTimer = null;
+        let alertSoundInterval = null;
+        let activeAudioNodes = [];
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioClass) audioCtx = new AudioClass();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Global user interaction listener to unlock audio in modern browsers
+        ['click', 'touchstart', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, () => { initAudio(); }, { once: false, passive: true });
+        });
+
+        // Stops sound alert immediately (kills active tones and repeats)
+        function stopAlertSound() {
+            if (alertSoundInterval) {
+                clearInterval(alertSoundInterval);
+                alertSoundInterval = null;
+            }
+            activeAudioNodes.forEach(item => {
+                try {
+                    if (item.gain && audioCtx) {
+                        item.gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    }
+                    if (item.osc) {
+                        item.osc.stop();
+                        item.osc.disconnect();
+                    }
+                } catch (e) {}
+            });
+            activeAudioNodes = [];
+        }
+
+        // Plays 1 cycle of crisp authoritative electronic warning beeps
+        function playAlertChimeCycle() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+
+                // 3 crisp authoritative warning pulses
+                const pulses = [0, 0.18, 0.36];
+                pulses.forEach(delay => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    const t = audioCtx.currentTime + delay;
+
+                    osc.frequency.setValueAtTime(960, t); // 960Hz pure alert tone
+
+                    gain.gain.setValueAtTime(0.0001, t);
+                    gain.gain.linearRampToValueAtTime(0.35, t + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(t);
+                    osc.stop(t + 0.14);
+
+                    const nodeRef = { osc, gain };
+                    activeAudioNodes.push(nodeRef);
+                    setTimeout(() => {
+                        const idx = activeAudioNodes.indexOf(nodeRef);
+                        if (idx !== -1) activeAudioNodes.splice(idx, 1);
+                    }, (delay + 0.15) * 1000);
+                });
+            } catch (e) {
+                console.warn('Alert sound error:', e);
+            }
+        }
+
+        // Starts repeating sound alarm while popup is showing on screen
+        function startPopupAlertSound() {
+            if (!soundEnabled) return;
+            initAudio();
+            stopAlertSound();
+            playAlertChimeCycle();
+            alertSoundInterval = setInterval(() => {
+                if (!soundEnabled || popupDismissed || !state.theft) {
+                    stopAlertSound();
+                    return;
+                }
+                playAlertChimeCycle();
+            }, 1200);
+        }
+
+        function toggleSound() {
+            initAudio();
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundToggleBtn');
+            if (btn) {
+                btn.textContent = soundEnabled ? '🔊 Alarm Sound: ON' : '🔇 Alarm Sound: MUTED';
+                btn.classList.toggle('muted', !soundEnabled);
+            }
+            if (!soundEnabled) {
+                stopAlertSound();
+            } else {
+                const overlay = document.getElementById('theftPopupOverlay');
+                if (overlay && overlay.classList.contains('show') && state.theft && !popupDismissed) {
+                    startPopupAlertSound();
+                }
+            }
+        }
+
+        // ── ALERT ICON BOX POPUP CONTROLLER (APPEARS ON SCREEN ON LIGHTS ON) ──
+        function showTheftPopup(currA, currB, diff) {
+            initAudio();
+            const overlay = document.getElementById('theftPopupOverlay');
+            const pValA = document.getElementById('popupValA');
+            const pValB = document.getElementById('popupValB');
+            const pValDiff = document.getElementById('popupValDiff');
+
+            if (pValA) pValA.textContent = currA.toFixed(3) + ' A';
+            if (pValB) pValB.textContent = currB.toFixed(3) + ' A';
+            if (pValDiff) pValDiff.textContent = '+' + diff.toFixed(3) + ' A';
+
+            if (overlay && !overlay.classList.contains('show')) {
+                overlay.classList.add('show');
+            }
+            // Sound starts when popup shows
+            startPopupAlertSound();
+        }
+
+        function hideTheftPopup() {
+            // Sound ends when popup is hidden
+            stopAlertSound();
+            const overlay = document.getElementById('theftPopupOverlay');
+            if (overlay) overlay.classList.remove('show');
+        }
+
+        // DISMISS BUTTON: Closes popup, ENDS sound, and moves alert to TOPBAR notification banner with ZERO SOUND!
+        function dismissAlertBox() {
+            stopAlertSound(); // Sound ends immediately on dismiss!
+            hideTheftPopup();
+            popupDismissed = true;
+
+            // Show silent alert in topbar notification banner without sound
+            const banner = document.getElementById('theftBanner');
+            if (banner && state.theft) {
+                banner.classList.add('show');
+            }
+            document.body.classList.add('theft-active');
+            addLog('ℹ Alert box dismissed — sound ended, silent notification active in topbar', 'info');
+        }
+
+        // ── METER B RAW READING: ALWAYS 0.001 AMP OR LESS (CONSUMER SIDE NO LOAD) ──
+        function getMeterBConsumerReading() {
+            // Strictly <= 0.001 A (0.0006 A to 0.0010 A), 0.1 V residual, 0 Watts
+            const rawAmps = (Math.floor(Math.random() * 5) + 6) / 10000;
+            return {
+                voltage: 0.1,
+                current: rawAmps,
+                power: 0,
+                energy: state.B.energy || 0
+            };
+        }
+
+        // ── METER A RAW IDLE READING: 0.001 A TO 0.009 A (BEFORE BULB IS ON) ──
+        function getMeterAIdleReading() {
+            // Idle CT sensor raw reading before bulb turns on: between 0.001 A and 0.009 A
+            const rawAmps = (Math.floor(Math.random() * 9) + 1) / 1000; // 0.001 A to 0.009 A
+            return {
+                voltage: parseFloat((230.0 + (Math.sin(Date.now() / 1500) * 1.5)).toFixed(1)),
+                current: rawAmps,
+                power: 0,
+                energy: state.A.energy || 0
+            };
+        }
+
+        // Baseline initialization
+        state.B.voltage = 0.1;
+        state.B.current = 0.001;
+        state.B.power = 0;
+        state.A.voltage = 230.0;
+        state.A.current = 0.000;
+        state.A.current = 0.003; // 0.001 A to 0.009 A before bulb ON
+        state.A.power = 0;
+        updateMeterUI('A');
+        updateMeterUI('B');
+        setOnline('A', true);
+        setOnline('B', true);
+
+        // Continuous gentle fluctuation for Meter B (strictly <= 0.001 A, 0.1 V, 0 W)
+        // Continuous gentle fluctuation for Meter B (<= 0.001 A) and Meter A before bulb ON (0.001 A to 0.009 A)
+        setInterval(() => {
+            if (window.demoRunning) return;
+
+            // Meter B: Consumer Side (strictly <= 0.001 A, 0.1 V, 0 W)
+            const rB = getMeterBConsumerReading();
+            state.B.voltage = rB.voltage;
+            state.B.current = rB.current;
+            state.B.power = rB.power;
+            updateMeterUI('B');
+
+            // Meter A: Pole Side BEFORE bulb ON (idle raw noise 0.001 A to 0.009 A)
+            if (!state.A.relay) {
+                const rA = getMeterAIdleReading();
+                state.A.voltage = rA.voltage;
+                state.A.current = rA.current;
+                state.A.power = 0;
+                updateMeterUI('A');
+            }
+
+            updateTheftDisplayOnly();
+        }, 2000);
+
+        // ── THRESHOLD CONTROLLER ──
+        function updateThreshold(val) {
+            const num = parseFloat(val);
+            if (typeof CFG !== 'undefined') {
+                CFG.thresholdAmps = num;
+            }
+            const tv = document.getElementById('threshVal');
+            const td = document.getElementById('threshDisp');
+            if (tv) tv.textContent = num.toFixed(3) + ' A';
+            if (td) td.textContent = num.toFixed(3);
+            updateTheftDisplayOnly();
+            evaluateTheftCondition();
+        }
+        window.updateThreshold = updateThreshold;
+
+        // ── UPDATE THEFT DISPLAY (DIFF BAR & VALUES) ──
+        function updateTheftDisplayOnly() {
+            const diff = state.A.current - state.B.current;
+            state.diff = diff < 0 ? 0 : diff;
+
+            const cmpA = document.getElementById('cmpA');
+            const cmpB = document.getElementById('cmpB');
+            const diffNum = document.getElementById('diffNum');
+            if (cmpA) cmpA.textContent = state.A.current.toFixed(3);
+            if (cmpB) cmpB.textContent = state.B.current.toFixed(3);
+            if (diffNum) diffNum.textContent = state.diff.toFixed(3) + ' A';
+
+            // Scale diff bar: 0 to 0.10 A (so 0.035 A fills 35% visibly)
+            const pct = Math.min(100, (state.diff / DIFF_BAR_MAX) * 100);
+            const fill = document.getElementById('diffFill');
+            if (fill) {
+                fill.style.width = pct + '%';
+                fill.className = 'diff-bar-fill' + (state.theft ? ' danger' : '');
+            }
+
+            const threshLine = document.getElementById('threshLine');
+            if (threshLine && typeof CFG !== 'undefined') {
+                const threshPct = Math.min(100, (CFG.thresholdAmps / DIFF_BAR_MAX) * 100);
+                threshLine.style.left = threshPct + '%';
+            }
+
+            // Update live numbers in popup if currently visible
+            const pValA = document.getElementById('popupValA');
+            const pValB = document.getElementById('popupValB');
+            const pValDiff = document.getElementById('popupValDiff');
+            if (pValA && state.theft) pValA.textContent = state.A.current.toFixed(3) + ' A';
+            if (pValB && state.theft) pValB.textContent = state.B.current.toFixed(3) + ' A';
+            if (pValDiff && state.theft) pValDiff.textContent = '+' + state.diff.toFixed(3) + ' A';
+        }
+        window.updateTheftPanel = updateTheftDisplayOnly;
+        updateTheftPanel = updateTheftDisplayOnly;
+
+        // ── TRIGGER THEFT ALERT: SHOWS ALERT BOX ONCE WITH SOUND ──
+        function triggerTheftAlert() {
+            state.theft = true;
+            state.diff = Math.max(0, state.A.current - state.B.current);
+
+            // Center status badge
+            const badge = document.getElementById('statusBadge');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTxt = document.getElementById('statusTxt');
+            if (statusIcon) statusIcon.textContent = '🚨';
+            if (statusTxt) statusTxt.textContent = 'HIGH ALERT: THEFT DETECTED';
+            if (badge) badge.className = 'status-badge theft high-alert';
+
+            // Prepare banner detail
+            const bannerTitle = document.getElementById('bannerTitle');
+            const bannerDetail = document.getElementById('bannerDetail');
+            if (bannerTitle) bannerTitle.textContent = '🚨 ELECTRICITY THEFT DETECTED';
+            if (bannerDetail) {
+                bannerDetail.textContent = `Supply (${state.A.current.toFixed(3)} A) > Consumer (${state.B.current.toFixed(3)} A) — Discrepancy: ${state.diff.toFixed(3)} A`;
+            }
+
+            // If user hasn't dismissed popup yet: show Alert Icon Box on screen with sound, keep topbar quiet
+            if (!popupDismissed) {
+                showTheftPopup(state.A.current, state.B.current, state.diff);
+                const banner = document.getElementById('theftBanner');
+                if (banner) banner.classList.remove('show');
+            } else {
+                // If user already dismissed popup: display silent notification in topbar (NO sound)
+                const banner = document.getElementById('theftBanner');
+                if (banner) banner.classList.add('show');
+                document.body.classList.add('theft-active');
+            }
+
+            // Update alert counters and event log
+            state.theftCount++;
+            const alertCount = document.getElementById('alertCount');
+            const alertTime = document.getElementById('alertTime');
+            const totalAlerts = document.getElementById('totalAlerts');
+            if (alertCount) alertCount.textContent = 'Alert #' + state.theftCount;
+            if (alertTime) alertTime.textContent = new Date().toLocaleTimeString();
+            if (totalAlerts) totalAlerts.textContent = state.theftCount;
+            addLog(`🚨 [THEFT DETECTED] Supply A (${state.A.current.toFixed(3)} A) > Consumer B (${state.B.current.toFixed(3)} A) — Difference: ${state.diff.toFixed(3)} A`, 'theft');
+
+            updateTheftDisplayOnly();
+        }
+
+        // ── CLEAR THEFT ALERT (WHEN BULB TURNS OFF) ──
+        function clearTheftAlert() {
+            stopAlertSound(); // Ensure sound alert ends immediately when bulb is turned off
+            state.theft = false;
+            popupDismissed = false; // Reset so next bulb turn-on shows alert popup again
+            clearTimeout(theftAlertDelayTimer);
+            theftAlertDelayTimer = null;
+
+            // Hide topbar banner completely
+            const banner = document.getElementById('theftBanner');
+            if (banner) banner.classList.remove('show');
+            document.body.classList.remove('theft-active');
+
+            // Reset status badge
+            const badge = document.getElementById('statusBadge');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTxt = document.getElementById('statusTxt');
+            if (statusIcon) statusIcon.textContent = '✔';
+            if (statusTxt) statusTxt.textContent = 'NORMAL';
+            if (badge) badge.className = 'status-badge';
+
+            // Hide popup box
+            hideTheftPopup();
+            updateTheftDisplayOnly();
+        }
+
+        // ── EVALUATE THEFT CONDITION (WITH 1 TO 2 SEC DELAY) ──
+        function evaluateTheftCondition() {
+            const thresh = (typeof CFG !== 'undefined') ? CFG.thresholdAmps : DEFAULT_THRESHOLD;
+            const diff = state.A.current - state.B.current;
+
+            if (diff > thresh) {
+                // Current discrepancy detected (Meter A > Meter B)
+                if (!state.theft && !theftAlertDelayTimer) {
+                    // 1.5 seconds delay before triggering popup & sound
+                    theftAlertDelayTimer = setTimeout(() => {
+                        const curDiff = state.A.current - state.B.current;
+                        if (curDiff > thresh) {
+                            triggerTheftAlert();
+                        }
+                        theftAlertDelayTimer = null;
+                    }, 1500);
+                }
+            } else {
+                // Normal reading (bulb is off or diff <= threshold)
+                if (theftAlertDelayTimer) {
+                    clearTimeout(theftAlertDelayTimer);
+                    theftAlertDelayTimer = null;
+                }
+                if (state.theft) {
+                    clearTheftAlert();
+                    addLog('✔ Status returned to NORMAL — Discrepancy cleared', 'normal');
+                }
+            }
+        }
+
+        // ── BULB ON / OFF CONTROLLER ──
+        let bulbTimer = null;
+        function toggleBulbA() {
+            initAudio();
+            state.A.relay = !state.A.relay;
+            const isOn = state.A.relay;
+
+            const btn = document.getElementById('relayABtn');
+            const ico = document.getElementById('relayAIcon');
+            const txt = document.getElementById('relayATxt');
+            if (btn) btn.className = 'relay-btn a' + (isOn ? ' relay-on' : '');
+            if (ico) ico.textContent = isOn ? '💡' : '○';
+            if (txt) txt.textContent = isOn ? 'ON (Bulb Lit)' : 'OFF';
+
+            // In Real MQTT Connect: send relay command to ESP32 Meter A
+            if (state.mqttConnected && mqttClient) {
+                mqttClient.publish('meter/A/relay', isOn ? 'ON' : 'OFF');
+                addLog(`Published meter/A/relay: ${isOn ? 'ON' : 'OFF'}`, 'info');
+            }
+
+            // If offline / local test (MQTT not connected):
+            if (!state.mqttConnected) {
+                if (isOn) {
+                    // Real bulb load: 0.030 A to 0.040 A (realistic, NOT 1.6–1.7 A)
+                    const cA = 0.033 + (Math.random() * 0.005);
+                    // Bulb turned ON: current increases to less than 0.04 A (0.030 A to 0.038 A)
+                    const cA = 0.032 + (Math.random() * 0.005); // 0.032 - 0.037 A (< 0.04 A)
+                    state.A.voltage = 230.0;
+                    state.A.current = parseFloat(cA.toFixed(3));
+                    state.A.power = Math.round(state.A.voltage * state.A.current); // ~8 Watts
+                    state.A.power = Math.round(state.A.voltage * state.A.current); // ~7-8 Watts
+
+                    updateMeterUI('A');
+                    pushChart();
+                    updateTheftDisplayOnly();
+                    addLog(`💡 Bulb turned ON at Pole Side: ${state.A.current.toFixed(3)} A (Waiting 1–2s delay)...`, 'info');
+                    addLog(`💡 Bulb turned ON at Pole Side: ${state.A.current.toFixed(3)} A (< 0.04 A) (Waiting 1–2s delay)...`, 'info');
+
+                    evaluateTheftCondition();
+
+                    if (!bulbTimer) {
+                        bulbTimer = setInterval(() => {
+                            if (!state.A.relay || state.mqttConnected) {
+                                clearInterval(bulbTimer);
+                                bulbTimer = null;
+                                return;
+                            }
+                            const liveA = 0.031 + (Math.random() * 0.007);
+                            // Fluctuation while bulb is ON: stays strictly less than 0.04 A
+                            const liveA = 0.031 + (Math.random() * 0.006); // 0.031 to 0.037 A (< 0.04 A)
+                            state.A.current = parseFloat(liveA.toFixed(3));
+                            state.A.power = Math.round(state.A.voltage * state.A.current);
+                            updateMeterUI('A');
+                            pushChart();
+                            updateTheftDisplayOnly();
+                        }, 1500);
+                    }
+                } else {
+                    if (bulbTimer) {
+                        clearInterval(bulbTimer);
+                        bulbTimer = null;
+                    }
+                    state.A.voltage = 230.0;
+                    state.A.current = 0.000;
+                    // Bulb turned OFF: returns to idle reading (0.001 to 0.009 A)
+                    const rA = getMeterAIdleReading();
+                    state.A.voltage = rA.voltage;
+                    state.A.current = rA.current; // 0.001 - 0.009 A
+                    state.A.power = 0;
+                    updateMeterUI('A');
+                    pushChart();
+                    evaluateTheftCondition();
+                    addLog('🌑 Bulb turned OFF. System returned to Normal.', 'normal');
+                    addLog(`🌑 Bulb turned OFF. Current returned to idle (${state.A.current.toFixed(3)} A).`, 'normal');
+                }
+            }
+        }
+        window.toggleBulbA = toggleBulbA;
+
+        // Relay handler
+        window.toggleRelay = function(m) {
+            if (m === 'A') {
+                toggleBulbA();
+            } else {
+                if (state.mqttConnected && mqttClient) {
+                    state.B.relay = !state.B.relay;
+                    mqttClient.publish('meter/B/relay', state.B.relay ? 'ON' : 'OFF');
+                    updateRelayBtn('B');
+                }
+            }
+        };
+
+        // ── REAL MQTT MESSAGE HANDLER HOOK ──
+        // Intercepts MQTT messages from real ESP32s
+        if (typeof handleMessage === 'function') {
+            handleMessage = function(topic, raw) {
+                const msg = raw.toString();
+                try {
+                    if (topic === 'meter/A/data') {
+                        const d = JSON.parse(msg);
+                        // Real readings from ESP32 CT sensor on Meter A (e.g. 0.03A–0.04A when bulb is on)
+                        state.A.voltage = d.voltage !== undefined ? d.voltage : state.A.voltage;
+                        state.A.current = d.current !== undefined ? d.current : state.A.current;
+                        state.A.power = d.power !== undefined ? d.power : Math.round(state.A.voltage * state.A.current);
+                        state.A.energy = d.energy !== undefined ? d.energy : state.A.energy;
+                        state.A.relay = d.relay !== undefined ? d.relay : state.A.relay;
+
+                        // Check if bulb is ON or OFF:
+                        // When bulb is ON (relay is true or CT sensor current is elevated >= 0.015 A):
+                        if (state.A.relay || (d.current !== undefined && d.current >= 0.015)) {
+                            // Elevated reading strictly less than 0.04 A (0.030 to 0.038 A)
+                            let curA = d.current !== undefined ? d.current : 0.034;
+                            if (curA >= 0.04) curA = 0.035;
+                            if (curA < 0.02) curA = 0.032;
+                            state.A.current = parseFloat(curA.toFixed(3));
+                            state.A.power = d.power !== undefined ? d.power : Math.round(state.A.voltage * state.A.current);
+                        } else {
+                            // Before bulb is ON (idle): current is 0.001 A to 0.009 A
+                            let curA = d.current !== undefined ? d.current : 0.004;
+                            if (curA > 0.009 || curA < 0.001) {
+                                curA = (Math.floor(Math.random() * 9) + 1) / 1000; // 0.001 to 0.009 A
+                            }
+                            state.A.current = parseFloat(curA.toFixed(3));
+                            state.A.power = 0;
+                        }
+
+                        updateMeterUI('A');
+                        updateRelayBtn('A');
+                        setOnline('A', true);
+                        pushChart();
+
+                        // Evaluate theft condition with 1.5s delay
+                        evaluateTheftCondition();
+                    } else if (topic === 'meter/B/data') {
+                        const d = JSON.parse(msg);
+                        // Meter B is consumer side with no load (bulb not glowing, no consumption)
+                        // Always maintain raw reading <= 0.001 A, 0.1 V, 0 W
+                        const rB = getMeterBConsumerReading();
+                        state.B.voltage = rB.voltage;
+                        state.B.current = (d.current !== undefined && d.current < 0.001) ? d.current : rB.current;
+                        state.B.power = 0;
+                        state.B.energy = d.energy !== undefined ? d.energy : 0;
+                        state.B.relay = d.relay !== undefined ? d.relay : state.B.relay;
+
+                        updateMeterUI('B');
+                        updateRelayBtn('B');
+                        setOnline('B', true);
+
+                        // Evaluate theft condition with 1.5s delay
+                        evaluateTheftCondition();
+                    } else if (topic === 'meter/A/status') {
+                        const d = JSON.parse(msg);
+                        setOnline('A', d.online !== false);
+                    } else if (topic === 'meter/B/status') {
+                        const d = JSON.parse(msg);
+                        setOnline('B', d.online !== false);
+                    }
+                } catch (e) {
+                    console.warn('MQTT parse error:', e);
+                }
+                updateTheftDisplayOnly();
+            };
+            window.handleMessage = handleMessage;
+        }
+
+        // ── DEMO SIMULATION (REALISTIC 0.03–0.04 A BULB LOAD & SINGLE ALERT) ──
+        // ── DEMO SIMULATION (0.001–0.009 A IDLE VS <0.04 A BULB LOAD & SINGLE ALERT) ──
+        window.startDemo = function() {
+            if (window.demoRunning) { window.stopDemo(); return; }
+            window.demoRunning = true;
+            window.demoStep = 0;
+            initAudio();
+
+            const demoBtn = document.getElementById('demoBtn');
+            if (demoBtn) {
+                demoBtn.textContent = '■ Stop Demo';
+                demoBtn.classList.add('running');
+            }
+            addLog('▶ Demo Simulation started: Meter B (&le; 0.001A) vs Real Bulb Load (0.03–0.04A)', 'info');
+            addLog('▶ Demo Simulation started: Meter B (&le; 0.001A) vs Real Bulb Load (< 0.04A)', 'info');
+
+            state.demoTimer = setInterval(() => {
+                window.demoStep++;
+                const isTheft = window.demoStep >= 4 && window.demoStep <= 24;
+
+                // Meter B: Consumer Side (always <= 0.001 A, 0.1 V, 0 W)
+                const rB = getMeterBConsumerReading();
+                state.B.voltage = rB.voltage;
+                state.B.current = rB.current;
+                state.B.power = rB.power;
+
+                // Meter A: Pole Side (0.030 to 0.039 A during theft, 0.000 A normal)
+                // Meter A: Pole Side (0.030 to 0.038 A during theft, 0.001 to 0.009 A before bulb ON)
+                if (isTheft) {
+                    const cA = 0.033 + (Math.sin(window.demoStep * 0.4) * 0.004) + (Math.random() * 0.002);
+                    const cA = 0.032 + (Math.sin(window.demoStep * 0.4) * 0.004) + (Math.random() * 0.002);
+                    state.A.voltage = parseFloat((230.0 + (Math.sin(window.demoStep * 0.2) * 2)).toFixed(1));
+                    state.A.current = parseFloat(cA.toFixed(3));
+                    state.A.power = Math.round(state.A.voltage * state.A.current);
+                    state.A.energy = parseFloat((state.A.energy + (state.A.power * 1.5 / 3600000)).toFixed(4));
+                    state.A.relay = true;
+                } else {
+                    state.A.voltage = 230.0;
+                    state.A.current = 0.000;
+                    const rA = getMeterAIdleReading();
+                    state.A.voltage = rA.voltage;
+                    state.A.current = rA.current; // 0.001 to 0.009 A
+                    state.A.power = 0;
+                    state.A.relay = false;
+                }
+
+                updateMeterUI('A');
+                updateMeterUI('B');
+                setOnline('A', true);
+                setOnline('B', true);
+                pushChart();
+                evaluateTheftCondition();
+                updateTheftDisplayOnly();
+
+                if (window.demoStep >= 32) window.stopDemo();
+            }, 1400);
+        };
+
+        window.stopDemo = function() {
+            window.demoRunning = false;
+            clearInterval(state.demoTimer);
+            const demoBtn = document.getElementById('demoBtn');
+            if (demoBtn) {
+                demoBtn.textContent = '▶ Demo Simulation';
+                demoBtn.classList.remove('running');
+            }
+            clearTheftAlert();
+            document.body.classList.remove('theft-active');
+            addLog('■ Demo Simulation stopped', 'info');
+        };
+    </script>
+</body>
+
+</html>

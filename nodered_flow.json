@@ -1,0 +1,507 @@
+[
+    {
+        "id": "tab_powertheft",
+        "type": "tab",
+        "label": "Power Theft Dashboard",
+        "disabled": false,
+        "info": "Smart Power Theft Detection System - Real-time Monitoring Dashboard"
+    },
+    {
+        "id": "mqtt_in_moduleA",
+        "type": "mqtt in",
+        "z": "tab_powertheft",
+        "name": "Sub: ModuleA Data",
+        "topic": "powertheft/moduleA/data",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "mqtt_broker_config",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 80,
+        "wires": [
+            [
+                "split_moduleA"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_in_moduleB",
+        "type": "mqtt in",
+        "z": "tab_powertheft",
+        "name": "Sub: ModuleB Data",
+        "topic": "powertheft/moduleB/data",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "mqtt_broker_config",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 160,
+        "wires": [
+            [
+                "split_moduleB"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_in_alert",
+        "type": "mqtt in",
+        "z": "tab_powertheft",
+        "name": "Sub: Alert",
+        "topic": "powertheft/alert",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "mqtt_broker_config",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 240,
+        "wires": [
+            [
+                "process_alert"
+            ]
+        ]
+    },
+    {
+        "id": "split_moduleA",
+        "type": "function",
+        "z": "tab_powertheft",
+        "name": "Parse Module A",
+        "func": "// Store in flow context for cross-referencing\nflow.set('voltageA', msg.payload.voltage);\nflow.set('currentA', msg.payload.current);\nflow.set('powerA', msg.payload.power);\n\nvar msgs = [];\n\n// Voltage gauge\nmsgs[0] = { payload: msg.payload.voltage, topic: 'voltage' };\n// Current A gauge\nmsgs[1] = { payload: msg.payload.current, topic: 'currentA' };\n// Power A text\nmsgs[2] = { payload: msg.payload.power.toFixed(2) + ' W', topic: 'powerA' };\n// Chart data point\nmsgs[3] = { payload: { \"ModuleA Current\": msg.payload.current }, topic: 'chart' };\n\nreturn msgs;",
+        "outputs": 4,
+        "x": 360,
+        "y": 80,
+        "wires": [
+            [
+                "gauge_voltage"
+            ],
+            [
+                "gauge_currentA"
+            ],
+            [
+                "text_powerA"
+            ],
+            [
+                "chart_current"
+            ]
+        ]
+    },
+    {
+        "id": "split_moduleB",
+        "type": "function",
+        "z": "tab_powertheft",
+        "name": "Parse Module B",
+        "func": "flow.set('currentB', msg.payload.current);\nflow.set('powerB', msg.payload.power);\n\nvar msgs = [];\n\n// Current B gauge\nmsgs[0] = { payload: msg.payload.current, topic: 'currentB' };\n// Power B text\nmsgs[1] = { payload: msg.payload.power.toFixed(2) + ' W', topic: 'powerB' };\n// Chart data point\nmsgs[2] = { payload: { \"ModuleB Current\": msg.payload.current }, topic: 'chart' };\n\n// Compute difference locally as backup\nvar cA = flow.get('currentA') || 0;\nvar diff = cA - msg.payload.current;\nmsgs[3] = { payload: diff.toFixed(4) + ' A', topic: 'diff' };\n\nreturn msgs;",
+        "outputs": 4,
+        "x": 360,
+        "y": 160,
+        "wires": [
+            [
+                "gauge_currentB"
+            ],
+            [
+                "text_powerB"
+            ],
+            [
+                "chart_current"
+            ],
+            [
+                "text_diff"
+            ]
+        ]
+    },
+    {
+        "id": "process_alert",
+        "type": "function",
+        "z": "tab_powertheft",
+        "name": "Process Alert",
+        "func": "var isTheft = msg.payload.alert;\nvar diff    = msg.payload.difference;\nvar cnt     = msg.payload.count;\n\nvar msgs = [];\n\n// Alert indicator\nif (isTheft) {\n    msgs[0] = {\n        payload: '⚠ THEFT DETECTED!',\n        style: { background: '#ff2222', color: '#fff', fontSize: '18px', fontWeight: 'bold' },\n        topic: 'alert'\n    };\n} else {\n    msgs[0] = {\n        payload: '✔ NORMAL — No Theft',\n        style: { background: '#22cc44', color: '#fff', fontSize: '16px' },\n        topic: 'alert'\n    };\n}\n\n// Difference text\nmsgs[1] = { payload: diff.toFixed(4) + ' A', topic: 'diff' };\n\n// Alert count\nmsgs[2] = { payload: cnt, topic: 'count' };\n\n// Notification (only on new theft)\nif (isTheft) {\n    msgs[3] = {\n        payload: '🚨 POWER THEFT DETECTED! Difference: ' + diff.toFixed(3) + ' A',\n        topic: 'notification'\n    };\n}\n\nreturn msgs;",
+        "outputs": 4,
+        "x": 360,
+        "y": 240,
+        "wires": [
+            [
+                "ui_alert_text"
+            ],
+            [
+                "text_diff"
+            ],
+            [
+                "text_alert_count"
+            ],
+            [
+                "ui_notification"
+            ]
+        ]
+    },
+    {
+        "id": "gauge_voltage",
+        "type": "ui_gauge",
+        "z": "tab_powertheft",
+        "name": "Voltage Gauge",
+        "group": "group_measurements",
+        "order": 1,
+        "width": 6,
+        "height": 5,
+        "gtype": "gage",
+        "title": "AC Voltage",
+        "label": "Volts",
+        "format": "{{value | number:1}} V",
+        "min": 0,
+        "max": 280,
+        "colors": [
+            "#0066CC",
+            "#00CC44",
+            "#FF4444"
+        ],
+        "seg1": 180,
+        "seg2": 240,
+        "className": "",
+        "x": 600,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "gauge_currentA",
+        "type": "ui_gauge",
+        "z": "tab_powertheft",
+        "name": "Current A Gauge",
+        "group": "group_measurements",
+        "order": 2,
+        "width": 6,
+        "height": 5,
+        "gtype": "gage",
+        "title": "Current A (Supply)",
+        "label": "Amps",
+        "format": "{{value | number:3}} A",
+        "min": 0,
+        "max": 10,
+        "colors": [
+            "#00AAFF",
+            "#00CC44",
+            "#FF4444"
+        ],
+        "seg1": 5,
+        "seg2": 8,
+        "className": "",
+        "x": 600,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "gauge_currentB",
+        "type": "ui_gauge",
+        "z": "tab_powertheft",
+        "name": "Current B Gauge",
+        "group": "group_measurements",
+        "order": 3,
+        "width": 6,
+        "height": 5,
+        "gtype": "gage",
+        "title": "Current B (Load)",
+        "label": "Amps",
+        "format": "{{value | number:3}} A",
+        "min": 0,
+        "max": 10,
+        "colors": [
+            "#00AAFF",
+            "#00CC44",
+            "#FF4444"
+        ],
+        "seg1": 5,
+        "seg2": 8,
+        "className": "",
+        "x": 600,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "text_powerA",
+        "type": "ui_text",
+        "z": "tab_powertheft",
+        "name": "Power A",
+        "group": "group_power",
+        "order": 1,
+        "width": 6,
+        "height": 2,
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "title": "⚡ Power A (Supply)",
+        "className": "",
+        "x": 600,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "text_powerB",
+        "type": "ui_text",
+        "z": "tab_powertheft",
+        "name": "Power B",
+        "group": "group_power",
+        "order": 2,
+        "width": 6,
+        "height": 2,
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "title": "⚡ Power B (Load)",
+        "className": "",
+        "x": 600,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "text_diff",
+        "type": "ui_text",
+        "z": "tab_powertheft",
+        "name": "Current Difference",
+        "group": "group_power",
+        "order": 3,
+        "width": 6,
+        "height": 2,
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "title": "📊 Difference (A - B)",
+        "className": "",
+        "x": 610,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "text_alert_count",
+        "type": "ui_text",
+        "z": "tab_powertheft",
+        "name": "Alert Count",
+        "group": "group_alert",
+        "order": 2,
+        "width": 6,
+        "height": 2,
+        "format": "{{msg.payload}} events",
+        "layout": "col-center",
+        "title": "🔢 Theft Events Detected",
+        "className": "",
+        "x": 600,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "ui_alert_text",
+        "type": "ui_text",
+        "z": "tab_powertheft",
+        "name": "Alert Status",
+        "group": "group_alert",
+        "order": 1,
+        "width": 12,
+        "height": 3,
+        "format": "<div style='font-size:22px; font-weight:bold; padding:10px;'>{{msg.payload}}</div>",
+        "layout": "col-center",
+        "title": "🚨 Theft Alert Status",
+        "className": "",
+        "x": 600,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "ui_notification",
+        "type": "ui_toast",
+        "z": "tab_powertheft",
+        "position": "top right",
+        "displayTime": "5",
+        "highlight": "#FF0000",
+        "sendall": false,
+        "outputs": 0,
+        "ok": "OK",
+        "cancel": "",
+        "raw": false,
+        "className": "",
+        "name": "Theft Notification",
+        "x": 620,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "chart_current",
+        "type": "ui_chart",
+        "z": "tab_powertheft",
+        "name": "Current History",
+        "group": "group_chart",
+        "order": 1,
+        "width": 12,
+        "height": 8,
+        "label": "Current History (A vs B)",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "No data yet...",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "15",
+        "removeOlder": 1,
+        "removeOlderPoints": "300",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#0099FF",
+            "#FF6600",
+            "#FF0000",
+            "#00CC44",
+            "#FFCC00",
+            "#AA00FF"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 620,
+        "y": 660,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "inject_test",
+        "type": "inject",
+        "z": "tab_powertheft",
+        "name": "Test Theft Sim",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "test",
+        "payload": "{\"alert\":true,\"difference\":0.75,\"currentA\":2.5,\"currentB\":1.75,\"voltage\":230.0,\"threshold\":0.5,\"count\":1,\"timestamp\":1000}",
+        "payloadType": "json",
+        "x": 120,
+        "y": 700,
+        "wires": [
+            [
+                "process_alert"
+            ]
+        ]
+    },
+    {
+        "id": "inject_normal",
+        "type": "inject",
+        "z": "tab_powertheft",
+        "name": "Test Normal",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "test",
+        "payload": "{\"alert\":false,\"difference\":0.02,\"currentA\":2.02,\"currentB\":2.0,\"voltage\":230.0,\"threshold\":0.5,\"count\":0,\"timestamp\":2000}",
+        "payloadType": "json",
+        "x": 120,
+        "y": 760,
+        "wires": [
+            [
+                "process_alert"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_broker_config",
+        "type": "mqtt-broker",
+        "name": "Local MQTT Broker",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "NodeRED_PowerTheft",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "powertheft/nodered/status",
+        "birthQos": "0",
+        "birthPayload": "online",
+        "birthMsg": {},
+        "closeTopic": "powertheft/nodered/status",
+        "closeQos": "0",
+        "closePayload": "offline",
+        "closeMsg": {},
+        "willTopic": "powertheft/nodered/status",
+        "willQos": "0",
+        "willPayload": "offline",
+        "willMsg": {},
+        "sessionExpiry": ""
+    },
+    {
+        "id": "group_measurements",
+        "type": "ui_group",
+        "name": "Live Measurements",
+        "tab": "ui_tab_main",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "group_power",
+        "type": "ui_group",
+        "name": "Power Analysis",
+        "tab": "ui_tab_main",
+        "order": 2,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "group_alert",
+        "type": "ui_group",
+        "name": "Theft Detection Alert",
+        "tab": "ui_tab_main",
+        "order": 3,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "group_chart",
+        "type": "ui_group",
+        "name": "Historical Graph",
+        "tab": "ui_tab_main",
+        "order": 4,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "ui_tab_main",
+        "type": "ui_tab",
+        "name": "Power Theft Monitor",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]

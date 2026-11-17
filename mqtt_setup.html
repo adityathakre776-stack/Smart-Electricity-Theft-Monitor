@@ -1,0 +1,1070 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MQTT Setup Guide — Power Theft Detection</title>
+    <meta name="description"
+        content="Step-by-step MQTT broker setup guide for Smart Power Theft Detection System using ESP32 and Mosquitto on Windows." />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #09090f;
+            --surface: #11121d;
+            --glass: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #e8eaf0;
+            --muted: #6e7299;
+            --blue: #3b8bff;
+            --green: #22d47e;
+            --orange: #ff8c00;
+            --red: #ff3355;
+            --purple: #b060ff;
+            --yellow: #ffcc00;
+            --font: 'Outfit', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+            --r: 14px;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            background-image: radial-gradient(ellipse 70% 50% at 10% 0%, rgba(59, 139, 255, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 90% 100%, rgba(176, 96, 255, 0.06) 0%, transparent 60%);
+        }
+
+        /* HEADER */
+        header {
+            background: rgba(9, 9, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 0 20px rgba(59, 139, 255, 0.3);
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #a8b4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .back-btn {
+            margin-left: auto;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            transition: .3s;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 139, 255, 0.15);
+            border-color: var(--blue);
+        }
+
+        /* LAYOUT */
+        .page {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 32px 24px 60px;
+        }
+
+        /* PROGRESS BAR */
+        .progress-wrap {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            height: 6px;
+            margin-bottom: 32px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--blue), var(--purple));
+            border-radius: 100px;
+            transition: width 0.6s ease;
+            width: 0%;
+        }
+
+        /* STEP CARD */
+        .step {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: .3s;
+        }
+
+        .step.done {
+            border-color: rgba(34, 212, 126, 0.4);
+            background: rgba(34, 212, 126, 0.04);
+        }
+
+        .step.active {
+            border-color: rgba(59, 139, 255, 0.5);
+            box-shadow: 0 0 24px rgba(59, 139, 255, 0.1);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .step-num {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--glass);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            font-family: var(--mono);
+            flex-shrink: 0;
+            transition: .3s;
+        }
+
+        .step.done .step-num {
+            background: var(--green);
+            border-color: var(--green);
+            color: #000;
+        }
+
+        .step.active .step-num {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(59, 139, 255, 0.4);
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .step-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .badge-windows {
+            background: rgba(0, 120, 215, 0.15);
+            border: 1px solid rgba(0, 120, 215, 0.3);
+            color: #4da6ff;
+        }
+
+        .badge-arduino {
+            background: rgba(0, 136, 150, 0.15);
+            border: 1px solid rgba(0, 136, 150, 0.3);
+            color: #00aaaa;
+        }
+
+        .badge-test {
+            background: rgba(255, 204, 0, 0.15);
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            color: var(--yellow);
+        }
+
+        .badge-esp32 {
+            background: rgba(176, 96, 255, 0.15);
+            border: 1px solid rgba(176, 96, 255, 0.3);
+            color: var(--purple);
+        }
+
+        .step-arrow {
+            font-size: 12px;
+            color: var(--muted);
+            transition: transform .3s;
+        }
+
+        .step.open .step-arrow {
+            transform: rotate(180deg);
+        }
+
+        .step-body {
+            display: none;
+            padding: 0 20px 20px;
+        }
+
+        .step.open .step-body {
+            display: block;
+        }
+
+        /* CONTENT INSIDE STEPS */
+        .step-desc {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .cmd-block {
+            background: #040408;
+            border: 1px solid rgba(59, 139, 255, 0.2);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin: 10px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .cmd-block code {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: #a0c8ff;
+            white-space: pre;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: rgba(59, 139, 255, 0.15);
+            border: 1px solid rgba(59, 139, 255, 0.3);
+            color: var(--blue);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: .3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(59, 139, 255, 0.3);
+        }
+
+        .copy-btn.copied {
+            background: rgba(34, 212, 126, 0.2);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .info-box {
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .info-box.tip {
+            background: rgba(34, 212, 126, 0.06);
+            border: 1px solid rgba(34, 212, 126, 0.2);
+            color: #7de8b0;
+        }
+
+        .info-box.warn {
+            background: rgba(255, 204, 0, 0.06);
+            border: 1px solid rgba(255, 204, 0, 0.2);
+            color: var(--yellow);
+        }
+
+        .info-box.danger {
+            background: rgba(255, 51, 85, 0.06);
+            border: 1px solid rgba(255, 51, 85, 0.2);
+            color: #ff8899;
+        }
+
+        .info-box.note {
+            background: rgba(59, 139, 255, 0.06);
+            border: 1px solid rgba(59, 139, 255, 0.2);
+            color: #88aaff;
+        }
+
+        .info-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .sub-steps {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .sub-steps li {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .sub-num {
+            background: var(--blue);
+            color: #fff;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .highlight {
+            background: rgba(59, 139, 255, 0.12);
+            color: #88bbff;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+
+        .highlight.green {
+            background: rgba(34, 212, 126, 0.12);
+            color: #66ee99;
+        }
+
+        .highlight.orange {
+            background: rgba(255, 140, 0, 0.12);
+            color: #ffaa44;
+        }
+
+        .highlight.red {
+            background: rgba(255, 51, 85, 0.12);
+            color: #ff8899;
+        }
+
+        /* CHECK BUTTON */
+        .check-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border: none;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: .3s;
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 139, 255, 0.4);
+        }
+
+        .check-btn.done-btn {
+            background: linear-gradient(135deg, var(--green), #00aa55);
+        }
+
+        /* WIRING TABLE */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(59, 139, 255, 0.1);
+            color: var(--blue);
+            font-weight: 600;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+        }
+
+        td:first-child {
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* TOPIC TABLE */
+        .topic-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .topic-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #040408;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+
+        .topic-name {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: #88aaff;
+            flex: 1;
+        }
+
+        .topic-dir {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 100px;
+            font-weight: 600;
+        }
+
+        .dir-pub {
+            background: rgba(34, 212, 126, 0.15);
+            color: var(--green);
+        }
+
+        .dir-sub {
+            background: rgba(255, 140, 0, 0.15);
+            color: var(--orange);
+        }
+
+        /* FINAL SUCCESS */
+        .success-card {
+            background: linear-gradient(135deg, rgba(34, 212, 126, 0.08), rgba(59, 139, 255, 0.08));
+            border: 1px solid rgba(34, 212, 126, 0.3);
+            border-radius: var(--r);
+            padding: 28px;
+            text-align: center;
+            margin-top: 24px;
+            display: none;
+        }
+
+        .success-card.show {
+            display: block;
+        }
+
+        .success-icon {
+            font-size: 56px;
+            margin-bottom: 12px;
+        }
+
+        .success-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--green);
+            margin-bottom: 8px;
+        }
+
+        .success-sub {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">📡</div>
+        <div>
+            <h1>MQTT Setup Guide</h1>
+            <p>Smart Power Theft Detection System — Step by Step</p>
+        </div>
+        <a href="index.html" class="back-btn">← Dashboard</a>
+    </header>
+
+    <div class="page">
+        <div class="progress-wrap">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <!-- ── STEP 1 ── -->
+        <div class="step active open" id="step1">
+            <div class="step-header" onclick="toggleStep('step1')">
+                <div class="step-num">1</div>
+                <div style="flex:1">
+                    <div class="step-title">Install Mosquitto MQTT Broker on Windows</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">Download → Install → Run as service
+                    </div>
+                </div>
+                <span class="badge-windows step-badge">Windows</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">Mosquitto is a free, lightweight MQTT broker that runs on your PC. The ESP32 will
+                    send sensor data to this broker.</p>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">1</div>
+                        <div>Go to <span class="highlight">https://mosquitto.org/download/</span> → Click
+                            <strong>Windows</strong> installer (.exe) → Download and run it</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">2</div>
+                        <div>Accept defaults during installation. Default install path: <span
+                                class="highlight">C:\Program Files\mosquitto\</span></div>
+                    </li>
+                    <li>
+                        <div class="sub-num">3</div>
+                        <div>Open <strong>Notepad as Administrator</strong> → Open file: <span
+                                class="highlight">C:\Program Files\mosquitto\mosquitto.conf</span></div>
+                    </li>
+                    <li>
+                        <div class="sub-num">4</div>
+                        <div><strong>Add these 4 lines</strong> at the very bottom of mosquitto.conf and Save:</div>
+                    </li>
+                </ul>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>listener 1883
+allow_anonymous true
+listener 9001
+protocol websockets</code>
+                </div>
+
+                <div class="info-box note"><span class="info-icon">ℹ</span>
+                    <div>Port <strong>1883</strong> = for ESP32 MQTT. Port <strong>9001</strong> = for Web Dashboard
+                        (WebSocket). Both needed!</div>
+                </div>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">5</div>
+                        <div>Open <strong>Command Prompt as Administrator</strong> and run:</div>
+                    </li>
+                </ul>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>net stop mosquitto
+net start mosquitto</code>
+                </div>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">6</div>
+                        <div>Verify broker is running — you should see <span class="highlight green">Status:
+                                Running</span>:</div>
+                    </li>
+                </ul>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>sc query mosquitto</code>
+                </div>
+
+                <div class="info-box tip"><span class="info-icon">✔</span>
+                    <div>If you see <strong>STATE: RUNNING</strong> — broker is ready! Move to Step 2.</div>
+                </div>
+
+                <button class="check-btn" onclick="markDone('step1','step2')">✔ Done — Mosquitto Running</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 2 ── -->
+        <div class="step" id="step2">
+            <div class="step-header" onclick="toggleStep('step2')">
+                <div class="step-num">2</div>
+                <div style="flex:1">
+                    <div class="step-title">Find Your PC's IP Address</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">Get the IP to paste into ESP32 code
+                    </div>
+                </div>
+                <span class="badge-windows step-badge">Windows</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">The ESP32 needs your PC's IP address to connect to the MQTT broker. Run this
+                    command:</p>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>ipconfig</code>
+                </div>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">1</div>
+                        <div>Look for <span class="highlight">IPv4 Address</span> under your WiFi adapter</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">2</div>
+                        <div>It will look like: <span class="highlight orange">192.168.1.105</span> (your actual number
+                            will differ)</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">3</div>
+                        <div>Make sure your ESP32 and PC are on the <strong>same WiFi network</strong> (same router)
+                        </div>
+                    </li>
+                </ul>
+
+                <div class="info-box warn"><span class="info-icon">⚠</span>
+                    <div>Your current IP shown here (detected from browser): <strong
+                            id="detectedIP">Detecting...</strong> — Use this in the ESP32 code!</div>
+                </div>
+
+                <div class="info-box note"><span class="info-icon">ℹ</span>
+                    <div>If using a PC mobile hotspot (like NayanSathi project), your IP is usually <span
+                            class="highlight">192.168.137.1</span></div>
+                </div>
+
+                <button class="check-btn" onclick="markDone('step2','step3')">✔ I have my PC IP address</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 3 ── -->
+        <div class="step" id="step3">
+            <div class="step-header" onclick="toggleStep('step3')">
+                <div class="step-num">3</div>
+                <div style="flex:1">
+                    <div class="step-title">Open Windows Firewall for MQTT Ports</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">Allow ESP32 to reach the broker
+                        through firewall</div>
+                </div>
+                <span class="badge-windows step-badge">Windows</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">Windows Firewall blocks incoming connections by default. Run these commands in
+                    <strong>Command Prompt as Administrator</strong>:</p>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>netsh advfirewall firewall add rule name="MQTT 1883" protocol=TCP dir=in localport=1883 action=allow
+netsh advfirewall firewall add rule name="MQTT WS 9001" protocol=TCP dir=in localport=9001 action=allow</code>
+                </div>
+
+                <div class="info-box tip"><span class="info-icon">✔</span>
+                    <div>Each command should say <strong>"Ok."</strong> — that means the rule was added successfully.
+                    </div>
+                </div>
+                <div class="info-box warn"><span class="info-icon">⚠</span>
+                    <div>If the ESP32 connects to WiFi but MQTT connection fails (RC=-2), it's almost always a firewall
+                        issue. Run the above commands.</div>
+                </div>
+
+                <button class="check-btn" onclick="markDone('step3','step4')">✔ Firewall Ports Opened</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 4 ── -->
+        <div class="step" id="step4">
+            <div class="step-header" onclick="toggleStep('step4')">
+                <div class="step-num">4</div>
+                <div style="flex:1">
+                    <div class="step-title">Update ESP32 Code with Your Broker IP</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">Paste your PC IP into the Arduino
+                        sketch</div>
+                </div>
+                <span class="badge-esp32 step-badge">ESP32 Code</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">Open <strong>esp32_direct_noadc.ino</strong> in Arduino IDE and find these lines
+                    near the top. Edit the IP address:</p>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>const char* WIFI_SSID    = "Thakre";          // Your WiFi name
+const char* WIFI_PASS    = "KRISHNA2277";     // Your WiFi password
+const char* MQTT_BROKER  = "192.168.1.105";   // ← PUT YOUR PC IP HERE
+const int   MQTT_PORT    = 1883;</code>
+                </div>
+
+                <div class="info-box note"><span class="info-icon">ℹ</span>
+                    <div>The WiFi credentials are already set. Only change <strong>MQTT_BROKER</strong> to your PC's
+                        actual IP from Step 2.</div>
+                </div>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">1</div>
+                        <div>In Arduino IDE: <strong>Tools → Board → ESP32 Dev Module</strong></div>
+                    </li>
+                    <li>
+                        <div class="sub-num">2</div>
+                        <div><strong>Tools → Port</strong> → select the COM port your ESP32 is connected to</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">3</div>
+                        <div>Click <strong>Upload</strong> (→ arrow button) and wait for "Done uploading"</div>
+                    </li>
+                </ul>
+
+                <button class="check-btn" onclick="markDone('step4','step5')">✔ Code Uploaded to ESP32</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 5 ── -->
+        <div class="step" id="step5">
+            <div class="step-header" onclick="toggleStep('step5')">
+                <div class="step-num">5</div>
+                <div style="flex:1">
+                    <div class="step-title">Test MQTT Connection with Serial Monitor</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">Verify ESP32 connects and publishes
+                        data</div>
+                </div>
+                <span class="badge-arduino step-badge">Arduino IDE</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">After uploading, open Serial Monitor to verify the connection:</p>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">1</div>
+                        <div>In Arduino IDE: <strong>Tools → Serial Monitor</strong> (or Ctrl+Shift+M)</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">2</div>
+                        <div>Set baud rate to <span class="highlight">115200</span> (bottom right dropdown)</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">3</div>
+                        <div>Press ESP32 RST (reset) button — you should see:</div>
+                    </li>
+                </ul>
+
+                <div class="cmd-block">
+                    <code style="color:#7de8b0">╔══════════════════════════════════════════╗
+║  Power Theft Detection — Direct Connect  ║
+╚══════════════════════════════════════════╝
+[WiFi] Connecting to Thakre..........
+[WiFi] ✔ Connected! IP: 192.168.1.xxx
+[MQTT] Connecting to 192.168.1.105:1883 ... ✔ OK     ← GOOD!
+[SYSTEM] Ready — measuring every 2 seconds
+══════════════════════════════════════════
+  Voltage   :  229.87 V
+  Current A :   2.3450 A
+  Current B :   2.3100 A
+  Diff(A-B) :   0.0350 A
+  STATUS    : ✔  NORMAL
+══════════════════════════════════════════
+[MQTT] Published OK</code>
+                </div>
+
+                <div class="info-box danger"><span class="info-icon">✖</span>
+                    <div>If you see <span class="highlight red">✖ Failed RC=-2</span> → Wrong IP or firewall blocking.
+                        Re-check Steps 2 & 3.</div>
+                </div>
+                <div class="info-box danger"><span class="info-icon">✖</span>
+                    <div>If WiFi keeps failing → Check SSID/Password spelling in code. Ensure 2.4GHz network (ESP32
+                        doesn't support 5GHz).</div>
+                </div>
+                <div class="info-box tip"><span class="info-icon">✔</span>
+                    <div>If you see <span class="highlight green">Published OK</span> → ESP32 is working perfectly! Move
+                        to Step 6.</div>
+                </div>
+
+                <button class="check-btn" onclick="markDone('step5','step6')">✔ Serial Monitor Shows Published
+                    OK</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 6 : MQTT EXPLORER ── -->
+        <div class="step" id="step6">
+            <div class="step-header" onclick="toggleStep('step6')">
+                <div class="step-num">6</div>
+                <div style="flex:1">
+                    <div class="step-title">MQTT Explorer — Connect, Subscribe &amp; Test</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">Full walkthrough: live data + theft simulation</div>
+                </div>
+                <span class="badge-test step-badge">MQTT Explorer</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">Since you already have MQTT Explorer, here is the complete setup for this project from start to finish.</p>
+
+                <div style="font-size:12px;font-weight:700;color:var(--blue);margin:16px 0 8px;text-transform:uppercase;letter-spacing:1px;">① Connect to Broker</div>
+                <ul class="sub-steps">
+                    <li><div class="sub-num">1</div><div>Open MQTT Explorer → click the <strong>Connections</strong> button (top left)</div></li>
+                    <li><div class="sub-num">2</div><div>Click <strong>"+"</strong> to create a new connection and fill in:</div></li>
+                </ul>
+
+                <table>
+                    <tr><th>Field in MQTT Explorer</th><th>Value to Enter</th></tr>
+                    <tr><td>Name</td><td>Power Theft Monitor</td></tr>
+                    <tr><td>Protocol</td><td><span class="highlight">mqtt://</span></td></tr>
+                    <tr><td>Host</td><td><span class="highlight orange">Your PC IPv4 (e.g. 192.168.1.105)</span></td></tr>
+                    <tr><td>Port</td><td><span class="highlight">1883</span></td></tr>
+                    <tr><td>Username</td><td><em style="color:var(--muted)">Leave empty</em></td></tr>
+                    <tr><td>Password</td><td><em style="color:var(--muted)">Leave empty</em></td></tr>
+                    <tr><td>Encryption / TLS</td><td><span class="highlight red">OFF</span> — unchecked</td></tr>
+                    <tr><td>Validate certificate</td><td><span class="highlight red">OFF</span> — unchecked</td></tr>
+                </table>
+
+                <ul class="sub-steps">
+                    <li><div class="sub-num">3</div><div>Click <strong>CONNECT</strong> → the left panel fills with a topic tree if broker is running</div></li>
+                </ul>
+                <div class="info-box tip"><span class="info-icon">✔</span><div>Green dot + topics in left panel = broker is running and reachable!</div></div>
+                <div class="info-box danger"><span class="info-icon">✖</span><div>Connection timeout → broker not running. Go back to Step 1 and restart Mosquitto.</div></div>
+
+                <div style="font-size:12px;font-weight:700;color:var(--orange);margin:20px 0 8px;text-transform:uppercase;letter-spacing:1px;">② Subscribe with Wildcard</div>
+                <ul class="sub-steps">
+                    <li><div class="sub-num">1</div><div>In the top search bar of MQTT Explorer, type <span class="highlight">powertheft/#</span> and press Enter</div></li>
+                    <li><div class="sub-num">2</div><div>The <span class="highlight">#</span> wildcard automatically shows ALL subtopics — no need to add them one by one</div></li>
+                    <li><div class="sub-num">3</div><div>With ESP32 running, you will see this topic tree on the left:</div></li>
+                </ul>
+
+                <div class="cmd-block">
+                    <code style="color:#88aaff">📁 powertheft
+   ├─ 📄 moduleA/data  → {"device":"A","voltage":229.87,"current":2.3450,"power":538.91}
+   ├─ 📄 moduleB/data  → {"device":"B","voltage":229.87,"current":2.3100,"power":530.80}
+   ├─ 📄 alert         → {"alert":false,"diff":0.035,"currentA":2.345,"currentB":2.310}
+   ├─ 📄 status        → {"status":"online"}
+   └─ 📄 alarm         → only appears when THEFT is detected!</code>
+                </div>
+
+                <div class="info-box note"><span class="info-icon">ℹ</span><div>Click any topic on the left → right panel shows <strong>full JSON</strong> + <strong>value graph over time</strong>. Perfect for monitoring current A vs B!</div></div>
+
+                <div style="font-size:12px;font-weight:700;color:var(--red);margin:20px 0 8px;text-transform:uppercase;letter-spacing:1px;">③ Simulate Theft — Publish from MQTT Explorer</div>
+                <p class="step-desc">Test the full alert system without any hardware using the Publish panel at the bottom of MQTT Explorer:</p>
+
+                <ul class="sub-steps">
+                    <li><div class="sub-num">1</div><div>Bottom Publish panel → Topic: <span class="highlight">powertheft/alert</span></div></li>
+                    <li><div class="sub-num">2</div><div>QoS = <span class="highlight">0</span> &nbsp;|&nbsp; Retain = <span class="highlight green">ON (checked)</span></div></li>
+                    <li><div class="sub-num">3</div><div>Paste Theft payload → click <strong>PUBLISH</strong> → dashboard turns RED instantly</div></li>
+                </ul>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy — Theft Alert</button>
+                    <code>{"alert":true,"diff":0.85,"currentA":2.85,"currentB":2.00,"voltage":230.0,"threshold":0.5,"count":1,"ts":1000}</code>
+                </div>
+
+                <ul class="sub-steps">
+                    <li><div class="sub-num">4</div><div>Publish this to the same topic to reset back to NORMAL:</div></li>
+                </ul>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy — Normal</button>
+                    <code>{"alert":false,"diff":0.02,"currentA":2.02,"currentB":2.00,"voltage":230.0,"threshold":0.5,"count":0,"ts":2000}</code>
+                </div>
+
+                <div class="info-box tip"><span class="info-icon">✔</span><div>If the dashboard reacts (RED/GREEN banner) after publish — your broker, MQTT Explorer, and dashboard are all connected perfectly!</div></div>
+
+                <div style="font-size:12px;font-weight:700;color:var(--green);margin:20px 0 8px;text-transform:uppercase;letter-spacing:1px;">④ What to Check in MQTT Explorer — Quick Diagnosis</div>
+
+                <table>
+                    <tr><th>What You See</th><th>Meaning</th><th>Status</th></tr>
+                    <tr><td>Topics fill left panel</td><td>Broker running, receiving data</td><td style="color:var(--green)">✔ Good</td></tr>
+                    <tr><td>Values update every ~2 sec</td><td>ESP32 connected &amp; publishing</td><td style="color:var(--green)">✔ Good</td></tr>
+                    <tr><td>diff &lt; 0.5 in alert topic</td><td>Normal — no theft</td><td style="color:var(--green)">✔ Normal</td></tr>
+                    <tr><td>diff &gt; 0.5 in alert topic</td><td>Theft threshold crossed</td><td style="color:var(--orange)">⚠ Alert</td></tr>
+                    <tr><td>alarm topic appears</td><td>Extra alarm message fired</td><td style="color:var(--red)">🚨 Theft</td></tr>
+                    <tr><td>Left panel empty after connect</td><td>ESP32 not yet connected</td><td style="color:var(--muted)">Wait / check serial</td></tr>
+                    <tr><td>Connection refused / timeout</td><td>Mosquitto not running or firewall</td><td style="color:var(--red)">✖ Fix Steps 1 &amp; 3</td></tr>
+                </table>
+
+                <button class="check-btn" onclick="markDone('step6','step7')">✔ MQTT Explorer Shows Live Data</button>
+            </div>
+        </div>
+
+        <!-- ── STEP 7 ── -->
+        <div class="step" id="step7">
+            <div class="step-header" onclick="toggleStep('step7')">
+                <div class="step-num">7</div>
+                <div style="flex:1">
+                    <div class="step-title">Open Web Dashboard & Connect</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px">See live gauges, charts, and theft
+                        alerts</div>
+                </div>
+                <span class="badge-test step-badge">Final Step</span>
+                <span class="step-arrow">▼</span>
+            </div>
+            <div class="step-body">
+                <p class="step-desc">The web dashboard connects to Mosquitto via WebSocket (port 9001):</p>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">1</div>
+                        <div>Open XAMPP → Start <strong>Apache</strong></div>
+                    </li>
+                    <li>
+                        <div class="sub-num">2</div>
+                        <div>Open browser → go to <span class="highlight">http://localhost/Electricity/</span></div>
+                    </li>
+                    <li>
+                        <div class="sub-num">3</div>
+                        <div>In the <strong>MQTT Configuration</strong> panel (bottom left), set Broker URL to:</div>
+                    </li>
+                </ul>
+
+                <div class="cmd-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <code>ws://localhost:9001</code>
+                </div>
+
+                <ul class="sub-steps">
+                    <li>
+                        <div class="sub-num">4</div>
+                        <div>Click the <strong>Connect</strong> button → Status dot turns <span
+                                style="color:var(--green)">●&nbsp;green</span></div>
+                    </li>
+                    <li>
+                        <div class="sub-num">5</div>
+                        <div>Gauges and charts start updating live from ESP32 data!</div>
+                    </li>
+                    <li>
+                        <div class="sub-num">6</div>
+                        <div>To test without hardware → click <span class="highlight">▶ Run Demo Simulation</span></div>
+                    </li>
+                </ul>
+
+                <div class="info-box note"><span class="info-icon">ℹ</span>
+                    <div>If dashboard can't connect: verify <span class="highlight">protocol websockets</span> is in
+                        your mosquitto.conf and broker was restarted.</div>
+                </div>
+
+                <button class="check-btn done-btn" onclick="markDone('step7',null)">🎉 System Fully Working!</button>
+            </div>
+        </div>
+
+        <!-- SUCCESS -->
+        <div class="success-card" id="successCard">
+            <div class="success-icon">🎉</div>
+            <div class="success-title">System Ready!</div>
+            <div class="success-sub">Mosquitto running → ESP32 connected → Dashboard live<br>Your Power Theft Detection
+                System is fully operational.</div>
+            <br>
+            <a href="index.html"
+                style="display:inline-block;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;margin-top:8px;">Open
+                Dashboard →</a>
+        </div>
+    </div>
+
+    <footer>Smart Power Theft Detection System — MQTT Setup Guide</footer>
+
+    <script>
+        // Detect local IP
+        try {
+            const pc = new RTCPeerConnection({ iceServers: [] });
+            pc.createDataChannel('');
+            pc.createOffer().then(o => pc.setLocalDescription(o));
+            pc.onicecandidate = e => {
+                if (!e || !e.candidate) return;
+                const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+                if (m && !m[1].startsWith('127')) {
+                    document.getElementById('detectedIP').textContent = m[1] + ' (your local IP)';
+                    pc.close();
+                }
+            };
+        } catch (e) { document.getElementById('detectedIP').textContent = 'Run ipconfig in CMD'; }
+
+        const TOTAL = 7;
+        let done = 0;
+
+        function toggleStep(id) {
+            document.getElementById(id).classList.toggle('open');
+            document.getElementById(id).querySelector('.step-arrow').textContent =
+                document.getElementById(id).classList.contains('open') ? '▲' : '▼';
+        }
+
+        function markDone(currentId, nextId) {
+            const el = document.getElementById(currentId);
+            el.classList.remove('active', 'open');
+            el.classList.add('done');
+            el.querySelector('.step-arrow').textContent = '▼';
+            done++;
+            updateProgress();
+            if (nextId) {
+                const next = document.getElementById(nextId);
+                next.classList.add('active', 'open');
+                next.querySelector('.step-arrow').textContent = '▲';
+                next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                document.getElementById('successCard').classList.add('show');
+                document.getElementById('successCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('progressBar').style.width = (done / TOTAL * 100) + '%';
+        }
+
+        function copyCode(btn) {
+            const code = btn.parentElement.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+            });
+        }
+    </script>
+</body>
+
+</html>

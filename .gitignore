@@ -1,0 +1,23 @@
+# Compiled Arduino & PlatformIO files
+*.hex
+*.bin
+*.elf
+*.o
+*.a
+.pio/
+build/
+
+# Operating System & Editor Artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and runtime databases
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
